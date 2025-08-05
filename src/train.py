@@ -1,35 +1,31 @@
 
 # train.py
 import pandas as pd
-import mlflow
-import mlflow.sklearn
-import joblib
+import pickle
 import os
 
-# 讀取特徵
-df = pd.read_csv("features/events_processed.csv")
 
-# 簡單熱門推薦: 計算推薦次數
-popular_items = df["item_id"].value_counts().head(10).index.tolist()
+# ====== 設定 ======
+DATA_PATH = "data/raw/events.csv"
+MODEL_OUTPUT = "models/popular_items.pkl"
+TOP_N = 10  # 可調整推薦商品數
 
-class PopularityModel:
-    def __init__(self, top_items):
-        self.top_items = top_items
-    def recommend(self, user_id):
-        return self.top_items
+# ====== 載入資料並計算熱門商品 ======
+df = pd.read_csv(DATA_PATH)
 
-model = PopularityModel(popular_items)
+# 選擇熱門商品的依據（這裡用點擊行為 'view'）
+popular_items = (
+    df[df["event"] == "view"]["itemid"]
+    .value_counts()
+    .head(TOP_N)
+    .index
+    .tolist()
+)
 
-# MLflow 記錄
-mlflow.set_experiment("RetailRocket-Popularity")
-with mlflow.start_run():
-    mlflow.log_param("model_type", "popularity")
-    mlflow.log_metric("top_10_items", len(model.top_items))
+# ====== 儲存熱門推薦清單 ======
+os.makedirs("models", exist_ok=True)
+with open(MODEL_OUTPUT, "wb") as f:
+    pickle.dump(popular_items, f)
 
-    # 存檔
-    os.makedirs("models", exist_ok=True)
-    joblib.dump(model, "models/model.pkl")
-    mlflow.sklearn.log_model(model, "model")
-
-print("[MLflow] 模型記錄完成")
+print(f"[train] 熱門推薦模型建立完成，共推薦 {TOP_N} 個商品")
 

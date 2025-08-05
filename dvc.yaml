@@ -12,7 +12,7 @@ stages:
     - features/events_processed.csv
     - src/train.py
     outs:
-    - models/model.pkl
+    - models/popular_items.pkl
   evaluate:
     cmd: python src/evaluate.py
     deps:
