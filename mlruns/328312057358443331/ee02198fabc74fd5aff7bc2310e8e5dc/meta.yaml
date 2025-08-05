@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/PHCheng/MLOps_Project/mlruns/328312057358443331/ee02198fabc74fd5aff7bc2310e8e5dc/artifacts
+end_time: 1754379965925
+entry_point_name: ''
+experiment_id: '328312057358443331'
+lifecycle_stage: active
+run_id: ee02198fabc74fd5aff7bc2310e8e5dc
+run_name: dapper-lamb-839
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1754379956075
+status: 3
+tags: []
+user_id: PHCheng

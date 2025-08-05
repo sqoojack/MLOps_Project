@@ -1,0 +1,11 @@
+# 忽略原始 CSV 資料 (因為檔案通常會太大)
+data/raw/*.csv
+
+# 忽略中間處理結果
+/features/
+/models/
+
+# 忽略 DVC cache、鎖檔
+.dvc/
+# dvc.lock
+/mlruns/

@@ -1,0 +1,15 @@
+stages:
+  preprocess:
+    cmd: python src/features.py
+    deps:
+    - data/raw/events.csv
+    - src/features.py
+    outs:
+    - features/events_processed.csv
+  train:
+    cmd: python src/train.py
+    deps:
+    - features/events_processed.csv
+    - src/train.py
+    outs:
+    - models/model.pkl
