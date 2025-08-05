@@ -9,10 +9,26 @@ stages:
       size: 94237913
     - path: src/features.py
       hash: md5
-      md5: 0cdfbd15f71c975a1b961b41ca2f6433
-      size: 1086
+      md5: fc517a727c83a501035d5a14e8c674d8
+      size: 457
     outs:
     - path: features/events_processed.csv
       hash: md5
       md5: ed783454b9bf62b2a4003420344cff77
       size: 77196050
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: features/events_processed.csv
+      hash: md5
+      md5: ed783454b9bf62b2a4003420344cff77
+      size: 77196050
+    - path: src/train.py
+      hash: md5
+      md5: 36688f9c6cf292ee8f810b2ebc5c522b
+      size: 884
+    outs:
+    - path: models/model.pkl
+      hash: md5
+      md5: 8a8c0715367c0c1bc03a62362fb10667
+      size: 114
