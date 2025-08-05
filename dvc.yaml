@@ -13,3 +13,11 @@ stages:
     - src/train.py
     outs:
     - models/model.pkl
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - data/raw/events.csv
+    - models/popular_items.pkl
+    - src/evaluate.py
+    outs:
+    - metrics/metrics.json
