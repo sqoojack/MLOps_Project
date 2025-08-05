@@ -1,0 +1,18 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/features.py
+    deps:
+    - path: data/raw/events.csv
+      hash: md5
+      md5: fddaf7c1c6a9df23a726500a08ffdd7e
+      size: 94237913
+    - path: src/features.py
+      hash: md5
+      md5: 0cdfbd15f71c975a1b961b41ca2f6433
+      size: 1086
+    outs:
+    - path: features/events_processed.csv
+      hash: md5
+      md5: ed783454b9bf62b2a4003420344cff77
+      size: 77196050
