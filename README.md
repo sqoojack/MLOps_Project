@@ -41,7 +41,8 @@ git commit -m "Add raw events.csv with DVC tracking"
 
 ## 3. 建立資料前處理 pipeline 階段
 ```
-# 新增 pipeline 階段，命名為 preprocess
+# 新增 pipeline 階段
+# -n:  命名為 preprocess
 # -d:  依賴檔案
 # -o:  輸出檔案
 dvc stage add -n preprocess -d src/features.py -d data/raw/events.csv -o features/events_processed.csv python src/features.py
@@ -69,6 +70,19 @@ dvc repro
 git add dvc.yaml dvc.lock
 git commit -m "Add train stage to DVC pipeline"
 ```
+
+# 查看模型
+因為已經有MLflow來記錄模型, 所以可以用MLflow UI來檢視訓練紀錄和model資訊
+```
+mlflow ui
+```
+
+## 5. 評估模型 (建立evaluate階段)
+```
+dvc stage add -n evaluate -d models/popular_items.pkl -d data/raw/events.csv -d src/evaluate.py -o metrics/metrics.json python src/evaluate.py
+dvc repro   # 執行整個流程 (包含前面的預訓練和train階段)
+```
+
 
 
 # Remarks:

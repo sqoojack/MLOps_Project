@@ -25,10 +25,30 @@ stages:
       size: 77196050
     - path: src/train.py
       hash: md5
-      md5: 36688f9c6cf292ee8f810b2ebc5c522b
-      size: 884
+      md5: 45eb95c2a8ac6a85011a0fe52f26d3e6
+      size: 723
     outs:
-    - path: models/model.pkl
+    - path: models/popular_items.pkl
       hash: md5
-      md5: 8a8c0715367c0c1bc03a62362fb10667
-      size: 114
+      md5: 483f3b68e41078f91f71b178cb972c04
+      size: 64
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/raw/events.csv
+      hash: md5
+      md5: fddaf7c1c6a9df23a726500a08ffdd7e
+      size: 94237913
+    - path: models/popular_items.pkl
+      hash: md5
+      md5: 483f3b68e41078f91f71b178cb972c04
+      size: 64
+    - path: src/evaluate.py
+      hash: md5
+      md5: 882fb2e7f2bb28d74b603bc0c2d146a3
+      size: 1342
+    outs:
+    - path: metrics/metrics.json
+      hash: md5
+      md5: 22b535dc46aa141fd858259471741473
+      size: 51
