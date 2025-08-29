@@ -6,11 +6,11 @@ stages:
     - src/features.py
     outs:
     - features/events_processed.csv
-  train:
-    cmd: python src/train.py
+  train_baseline:
+    cmd: python src/train_baseline.py
     deps:
     - features/events_processed.csv
-    - src/train.py
+    - src/train_baseline.py
     outs:
     - models/popular_items.pkl
   evaluate:
@@ -21,3 +21,4 @@ stages:
     - src/evaluate.py
     outs:
     - metrics/metrics.json
+
