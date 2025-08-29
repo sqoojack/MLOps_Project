@@ -14,3 +14,5 @@ def recommend(user_id: int):
     }
 
 #  uvicorn api.main:app --reload
+#  之後在瀏覽器後面加: /recommend?user_id=257957
+#  ex: http://127.0.0.1:8000/recommend?user_id=257957

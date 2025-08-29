@@ -96,3 +96,5 @@ dvc add data/raw/category_tree.csv
 git add data/raw/category_tree.csv.dvc   # 用dvc檔去追蹤data
 git commit -m "Add category_tree.csv to DVC"
 ```
+- **dvc.lock:**
+是 DVC 用來「鎖定」和「記錄」當前 pipeline 各階段輸入、輸出和指令的狀態檔。
