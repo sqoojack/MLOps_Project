@@ -1,5 +1,5 @@
 # 忽略原始 CSV 資料 (因為檔案通常會太大)
-data/raw/*.csv
+data/*.csv
 
 # 忽略中間處理結果
 /features/
