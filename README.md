@@ -94,7 +94,7 @@ dvc repro   # 執行整個流程 (包含前面的預訓練和train階段)
 如果目前 pipeline 還沒有用到，暫時不必用 dvc add 加入 DVC 管理。
 DVC 最重要是管理「大型且需要版本追蹤的資料」，如果你未來要用，再用 dvc add 加入即可
 
-- 如何用 DVC 管理還沒用的資料？
+- 如何用 DVC 管理還沒用的資料?
 ```
 dvc add data/raw/category_tree.csv
 git add data/raw/category_tree.csv.dvc   # 用dvc檔去追蹤data

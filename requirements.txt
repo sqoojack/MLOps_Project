@@ -6,3 +6,8 @@ fastapi
 uvicorn
 joblib
 prometheus-fastapi-instrumentator
+torch
+numpy
+pandas
+mlflow
+dvc

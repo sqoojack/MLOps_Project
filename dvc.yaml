@@ -1,24 +1,35 @@
 stages:
-  preprocess:
-    cmd: python src/features.py
-    deps:
-    - data/raw/events.csv
-    - src/features.py
-    outs:
-    - features/events_processed.csv
-  train_baseline:
-    cmd: python src/train_baseline.py
-    deps:
-    - features/events_processed.csv
-    - src/train_baseline.py
-    outs:
-    - models/popular_items.pkl
-  evaluate:
-    cmd: python src/evaluate.py
-    deps:
-    - data/raw/events.csv
-    - models/popular_items.pkl
-    - src/evaluate.py
-    outs:
-    - metrics/metrics.json
+    preprocess:
+        cmd: python src/features.py
+        deps:
+        - data/events.csv
+        - src/features.py
+        outs:
+        - features/events_processed.csv
+
+    train_baseline:
+        cmd: python src/train_baseline.py
+        deps:
+        - features/events_processed.csv
+        - src/train_baseline.py
+        outs:
+        - models/popular_items.pkl
+
+    train_transformer:
+        cmd: python src/train.py
+        deps:
+        - features/events_processed.csv
+        - src/train.py
+        outs:
+        - models/transformer_model.pth
+        - models/item_map.pkl
+
+    evaluate:
+        cmd: python src/evaluate.py
+        deps:
+        - data/events.csv
+        - models/popular_items.pkl
+        - src/evaluate.py
+        outs:
+        - metrics/metrics.json
 
