@@ -1,35 +1,45 @@
+# dvc.yaml
 stages:
-    preprocess:
+    # 1. 資料處理
+    process:
         cmd: python src/features.py
         deps:
-        - data/events.csv
+        - data/raw/events.csv
         - src/features.py
+        - params.yaml
         outs:
-        - features/events_processed.csv
+        - data/processed/train.csv
+        - data/processed/test.csv
 
+    # 2. 訓練 Baseline (熱門推薦) - 選擇性保留
     train_baseline:
         cmd: python src/train_baseline.py
         deps:
-        - features/events_processed.csv
+        - data/processed/train.csv
         - src/train_baseline.py
         outs:
-        - models/popular_items.pkl
+        - models/baseline_top10.json
 
-    train_transformer:
+    # 3. 訓練 Transformer 模型
+    train:
         cmd: python src/train.py
         deps:
-        - features/events_processed.csv
+        - data/processed/train.csv
+        - data/processed/test.csv
         - src/train.py
-        outs:
-        - models/transformer_model.pth
-        - models/item_map.pkl
+        - src/model.py
+        - params.yaml
+        # 如果 train.py 裡有儲存模型，可以把 output 寫在這
+        # 由於我們用了 MLflow，這邊不強制要 dvc outs，除非你要版控 .pth 檔
 
+    # 4. 評估階段 (生成 Metrics)
     evaluate:
         cmd: python src/evaluate.py
         deps:
-        - data/events.csv
-        - models/popular_items.pkl
         - src/evaluate.py
-        outs:
-        - metrics/metrics.json
-
+        - src/model.py
+        - data/processed/test.csv
+        - params.yaml
+        metrics:
+        - metrics.json:
+            cache: false

@@ -1,0 +1,30 @@
+# params.yaml
+data:
+  raw_path: "data/raw/events.csv"
+  processed_train_path: "data/processed/train.csv"
+  processed_test_path: "data/processed/test.csv"
+  test_size: 0.2
+  min_item_count: 5
+
+model:
+  embed_dim: 64
+  num_heads: 4
+  num_layers: 2
+  max_len: 20
+  dropout: 0.1
+
+train:
+  batch_size: 32
+  epochs: 10
+  lr: 0.001
+  eval_interval: 1  # 每個 epoch 都跑一次驗證
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  ttl: 86400  # 24 hours
+
+mlflow:
+  experiment_name: "RecTransformer_Experiment"
+  model_name: "RecTransformer_Prod"
