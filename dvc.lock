@@ -3,19 +3,19 @@ stages:
   preprocess:
     cmd: python src/features.py
     deps:
-    - path: data/raw/events.csv
+    - path: data/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
       size: 94237913
     - path: src/features.py
       hash: md5
-      md5: fc517a727c83a501035d5a14e8c674d8
-      size: 457
+      md5: aeeb325a1a7cbe448901e1a2a1c7f0fd
+      size: 1366
     outs:
     - path: features/events_processed.csv
       hash: md5
-      md5: ed783454b9bf62b2a4003420344cff77
-      size: 77196050
+      md5: 511fe3ef6d3bdfedf3469351cefa4ebf
+      size: 33013063
   train:
     cmd: python src/train.py
     deps:
@@ -52,3 +52,19 @@ stages:
       hash: md5
       md5: 22b535dc46aa141fd858259471741473
       size: 51
+  train_baseline:
+    cmd: python src/train_baseline.py
+    deps:
+    - path: features/events_processed.csv
+      hash: md5
+      md5: 511fe3ef6d3bdfedf3469351cefa4ebf
+      size: 33013063
+    - path: src/train_baseline.py
+      hash: md5
+      md5: 8e5220f55148b75b2e0678f227332fd2
+      size: 885
+    outs:
+    - path: models/popular_items.pkl
+      hash: md5
+      md5: 483f3b68e41078f91f71b178cb972c04
+      size: 64
