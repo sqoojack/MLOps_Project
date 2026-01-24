@@ -55,16 +55,40 @@ stages:
   train_baseline:
     cmd: python src/train_baseline.py
     deps:
-    - path: features/events_processed.csv
+    - path: data/processed/train.csv
       hash: md5
-      md5: 511fe3ef6d3bdfedf3469351cefa4ebf
-      size: 33013063
+      md5: 40d28b803786286ab966c8f66ae03f1d
+      size: 100105332
     - path: src/train_baseline.py
       hash: md5
-      md5: 8e5220f55148b75b2e0678f227332fd2
-      size: 885
+      md5: e37420d7176462f7d9ec931c74cc65b3
+      size: 1476
     outs:
-    - path: models/popular_items.pkl
+    - path: models/baseline_top10.json
       hash: md5
-      md5: 483f3b68e41078f91f71b178cb972c04
-      size: 64
+      md5: a06a220b3b2d5b3838c2c7bf1c3bec4a
+      size: 75
+  process:
+    cmd: python src/features.py
+    deps:
+    - path: data/raw/events.csv
+      hash: md5
+      md5: fddaf7c1c6a9df23a726500a08ffdd7e
+      size: 94237913
+    - path: params.yaml
+      hash: md5
+      md5: bb0596ff63c90f09882edeb547259552
+      size: 544
+    - path: src/features.py
+      hash: md5
+      md5: c69a10c06fb4dd22bcea8dcce775a2ff
+      size: 2402
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 09186ef91ee7b13bfb56eef86a0c8c5d
+      size: 25030826
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 40d28b803786286ab966c8f66ae03f1d
+      size: 100105332
