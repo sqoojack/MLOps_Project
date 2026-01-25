@@ -20,7 +20,7 @@ train:
   eval_interval: 1  # 每個 epoch 都跑一次驗證
 
 redis:
-  host: "localhost"
+  host: "redis"
   port: 6379
   db: 0
   ttl: 86400  # 24 hours
