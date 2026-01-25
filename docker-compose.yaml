@@ -1,13 +1,23 @@
 version: '3.8'
 services:
+    # 1. 新增 Redis 服務
+    redis:
+        image: redis:alpine
+        ports:
+            - "6379:6379"
+        networks:
+            - mlops_network
+
     api:
         build: 
             context: .
             dockerfile: Dockerfile.api
         ports:
             - "8000:8000"
-        networks:         # 確保在同一個網路
+        networks:
             - mlops_network
+        depends_on:  # 2. 確保 API 等 Redis 啟動後才啟動
+            - redis
         volumes:
             - ./model.pth:/app/model.pth
             - ./params.yaml:/app/params.yaml
