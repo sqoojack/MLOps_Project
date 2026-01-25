@@ -1,7 +1,7 @@
 # dvc.yaml
 stages:
     # 1. 資料處理
-    process:
+    preprocess:
         cmd: python src/features.py
         deps:
         - data/raw/events.csv
@@ -29,8 +29,9 @@ stages:
         - src/train.py
         - src/model.py
         - params.yaml
-        # 如果 train.py 裡有儲存模型，可以把 output 寫在這
-        # 由於我們用了 MLflow，這邊不強制要 dvc outs，除非你要版控 .pth 檔
+        outs:
+        - model.pth
+        - item_map.json
 
     # 4. 評估階段 (生成 Metrics)
     evaluate:
@@ -40,6 +41,8 @@ stages:
         - src/model.py
         - data/processed/test.csv
         - params.yaml
+        - model.pth      # 明確依賴模型檔案
+        - item_map.json  # 明確依賴 Mapping
         metrics:
         - metrics.json:
             cache: false

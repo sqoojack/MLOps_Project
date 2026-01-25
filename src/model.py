@@ -59,7 +59,6 @@ class RecTransformer(nn.Module):
         x = self.item_embedding(x) + self.position_embedding(pos)
         x = self.dropout(x)
 
-        # 這裡產生上三角 Mask (未來資訊)
         mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
 
         for layer in self.layers:
