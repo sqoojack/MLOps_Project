@@ -1,56 +1,49 @@
-# init_redis.py
 import redis
 import yaml
 import json
+import pandas as pd
 import random
 
 def init_redis():
     print("Connecting to Redis...")
-    # 載入設定
     with open("params.yaml") as f:
         params = yaml.safe_load(f)
-    
-    # 載入 Item Map (為了確保塞入的 ID 是模型認得的)
+        
     try:
-        with open("item_map.json", "r") as f:
-            item_map = json.load(f)
-            # 取得所有合法的 item id (整數)
-            valid_items = [int(k) for k in item_map.keys()]
-    except FileNotFoundError:
-        print("Error: item_map.json not found. Generating random IDs instead.")
-        valid_items = list(range(1, 100))
-
-    try:
-        r = redis.Redis(
-            host=params['redis']['host'], 
-            port=params['redis']['port'], 
-            db=params['redis']['db']
-        )
+        r = redis.Redis(host=params['redis']['host'], port=params['redis']['port'], db=0)
         r.ping()
         print("Redis connected!")
-
-        # 清空舊資料 (可選)
-        # r.flushdb()
-
-        # 建立 5 個測試使用者
-        test_users = ["user_1", "user_2", "user_3", "vip_user", "new_guy"]
         
-        print(f"Seeding data for {len(test_users)} users...")
+        # 讀取處理過後的 Train Data (確保 ID 是一致的)
+        print("Loading processed data for seeding...")
+        df = pd.read_csv(params['data']['processed_train_path'])
         
-        for user in test_users:
-            # 隨機生成 5~10 個歷史互動
-            history_len = random.randint(5, 10)
-            history_items = random.sample(valid_items, history_len)
+        # 隨機挑選 10 個真實使用者
+        sample_users = df['visitorid'].unique()
+        selected_users = random.sample(list(sample_users), 10)
+        # 手動加入一個好記的測試帳號 (如果數據集裡剛好有，或者我們可以假造一個)
+        
+        print(f"Seeding {len(selected_users)} users...")
+        
+        for user_id in selected_users:
+            # 取得該使用者的歷史 Item IDs (int format)
+            user_history = df[df['visitorid'] == user_id]['item_idx'].tolist()
+            
+            # 只取最後 20 個
+            if len(user_history) > 20:
+                user_history = user_history[-20:]
             
             # 寫入 Redis
-            r.set(f"user:{user}", json.dumps(history_items))
-            print(f"Set {user}: {history_items}")
-
-        print("\nDone! You can now use these IDs in the UI:")
-        print(test_users)
+            r.set(f"user:{user_id}", json.dumps(user_history))
+            print(f"User {user_id} seeded with {len(user_history)} items.")
+            
+        print("\nInitialization Complete!")
+        print("Try these User IDs in Streamlit:")
+        for u in selected_users[:5]:
+            print(f"- {u}")
 
     except Exception as e:
-        print(f"Redis connection failed: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     init_redis()

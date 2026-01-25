@@ -7,12 +7,11 @@ import sys
 import os
 import redis
 
-# 將 src 加入路徑以匯入模型
+# 將 src 加入路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 try:
     from src.model import RecTransformer
 except ImportError:
-    # 這是為了防止在某些 docker 環境下找不到路徑的備用方案
     from model import RecTransformer
 
 app = FastAPI()
@@ -21,24 +20,31 @@ app = FastAPI()
 # 1. 初始化與載入設定
 # ---------------------------------------------------------
 
-# 載入設定
 with open("params.yaml") as f:
     params = yaml.safe_load(f)
 
-# 載入 Item Map (ID <-> Integer)
-with open("item_map.json", "r") as f:
-    item_map = json.load(f)
-    # JSON key 是 str，轉回 int
-    item_map = {int(k): v for k, v in item_map.items()}
-    # 建立反向映射 (Model Output Index -> Item ID)
-    rev_item_map = {v: k for k, v in item_map.items()}
+# [FIX 1] 必須載入 item_map 才能知道 num_items
+try:
+    with open("item_map.json", "r") as f:
+        item_map = json.load(f)
+    num_items = len(item_map)
+except FileNotFoundError:
+    print("Warning: item_map.json not found. Model may fail to initialize.")
+    item_map = {}
+    num_items = 100 # Fallback
+
+# 載入 Metadata (用於顯示圖片)
+try:
+    with open("items_metadata.json", "r") as f:
+        metadata = json.load(f)
+except FileNotFoundError:
+    print("Warning: items_metadata.json not found.")
+    metadata = {}
 
 # 載入模型
 device = torch.device("cpu")
-num_items = len(item_map)
 model = RecTransformer(num_items)
 
-# 檢查模型檔案是否存在
 if os.path.exists("model.pth"):
     model.load_state_dict(torch.load("model.pth", map_location=device))
 else:
@@ -46,13 +52,12 @@ else:
 model.eval()
 
 # 連線 Redis
-# 注意：如果在 Docker 內執行且 Redis 是另一個服務，host 可能需要改成 'redis' 而非 'localhost'
 try:
     redis_client = redis.Redis(
         host=params['redis']['host'], 
         port=params['redis']['port'], 
         db=params['redis']['db'],
-        decode_responses=True # 讓回傳結果直接是字串
+        decode_responses=True
     )
     redis_client.ping()
     print("✅ Redis connected successfully!")
@@ -65,24 +70,22 @@ except Exception as e:
 # ---------------------------------------------------------
 
 class PredictionRequest(BaseModel):
-    # 直接提供 Item ID 列表 (用於測試模型能力)
     recent_interactions: list[int]
 
 class RecRequest(BaseModel):
-    # 提供 User ID (用於實際應用場景)
     user_id: str
 
 # ---------------------------------------------------------
-# 3. 核心推論邏輯 (共用)
+# 3. 核心推論邏輯
 # ---------------------------------------------------------
 
 def _get_predictions(recent_interactions: list[int], top_k=10):
     """
-    輸入: 原始 Item ID 列表 (e.g., [101, 102])
-    輸出: 推薦的 Item ID 列表
+    輸入: Item Index 列表 (對應 item_map 的 value)
     """
-    # 轉換為模型內部的 Index
-    seq = [item_map.get(i) for i in recent_interactions if i in item_map]
+    # [FIX 2] 因為 Redis 存的已經是 Index (int)，不需要再查 item_map
+    # 直接做邊界檢查即可
+    seq = [i for i in recent_interactions if 0 < i <= num_items]
     
     if not seq:
         return []
@@ -98,14 +101,12 @@ def _get_predictions(recent_interactions: list[int], top_k=10):
     input_tensor = torch.tensor([seq], dtype=torch.long).to(device)
     with torch.no_grad():
         output = model(input_tensor)
-        logits = output[:, -1, :] # 取最後時間點
+        logits = output[:, -1, :] 
         
-        # 取 Top K
         _, top_indices = torch.topk(logits, top_k, dim=-1)
         
-    # 解析結果 (轉回原始 Item ID)
-    recs = [rev_item_map.get(idx.item()) for idx in top_indices[0] if idx.item() in rev_item_map]
-    return recs
+    # 回傳推薦的 Item Indices
+    return top_indices[0].tolist()
 
 # ---------------------------------------------------------
 # 4. API Endpoints
@@ -117,44 +118,45 @@ def health_check():
 
 @app.post("/predict")
 def predict(req: PredictionRequest):
-    """
-    直接根據輸入的 item list 進行預測
-    """
     recs = _get_predictions(req.recent_interactions)
     return {"recommendations": recs, "source": "input_list"}
 
 @app.post("/recommend")
 def recommend(req: RecRequest):
-    """
-    根據 User ID 從 Redis 撈取歷史紀錄後進行預測
-    """
     if redis_client is None:
         raise HTTPException(status_code=503, detail="Redis service unavailable")
 
-    # 1. 從 Redis 獲取使用者歷史紀錄
-    # key 格式需與 init_redis.py 一致 (e.g., "user:user_1")
     redis_key = f"user:{req.user_id}"
     history_str = redis_client.get(redis_key)
     
     if not history_str:
-        # 如果找不到使用者，回傳空清單 (或可改為回傳熱門商品)
         return {
             "user_id": req.user_id,
             "recommendations": [], 
             "source": "unknown_user"
         }
     
-    # 2. 解析歷史紀錄
     try:
         history_items = json.loads(history_str)
     except json.JSONDecodeError:
         return {"recommendations": [], "error": "Invalid history format"}
 
-    # 3. 執行推論
+    # 執行推論
     recs = _get_predictions(history_items)
+    
+    # 組合詳細資訊 (圖片、名稱)
+    detailed_recs = []
+    for item_idx in recs:
+        # metadata 的 key 是字串型態的 index (e.g. "105")
+        item_info = metadata.get(str(item_idx), {
+            "name": f"Unknown Item ({item_idx})",
+            "image": None,
+            "asin": "N/A"
+        })
+        detailed_recs.append(item_info)
     
     return {
         "user_id": req.user_id,
-        "recommendations": recs, 
-        "source": "model_personalization"
+        "recommendations": detailed_recs,
+        "source": "model_personalization_gqa"
     }

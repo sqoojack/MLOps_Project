@@ -1,26 +1,19 @@
-# dvc.yaml
 stages:
-    # 1. 資料處理
+    # 1. 資料處理 (ETL)
     preprocess:
         cmd: python src/features.py
         deps:
-        - data/raw/events.csv
         - src/features.py
         - params.yaml
+        - data/raw/reviews_Beauty_5.json.gz  # 改為追蹤新的資料集
+        - data/raw/meta_Beauty.json.gz
         outs:
         - data/processed/train.csv
         - data/processed/test.csv
+        - item_map.json           # output
+        - items_metadata.json     # output
 
-    # 2. 訓練 Baseline (熱門推薦) - 選擇性保留
-    train_baseline:
-        cmd: python src/train_baseline.py
-        deps:
-        - data/processed/train.csv
-        - src/train_baseline.py
-        outs:
-        - models/baseline_top10.json
-
-    # 3. 訓練 Transformer 模型
+    # 2. 訓練 Transformer 模型
     train:
         cmd: python src/train.py
         deps:
@@ -29,11 +22,11 @@ stages:
         - src/train.py
         - src/model.py
         - params.yaml
+        - item_map.json           # train.py 需要讀取這個來知道 num_items
         outs:
         - model.pth
-        - item_map.json
 
-    # 4. 評估階段 (生成 Metrics)
+    # 3. 評估階段
     evaluate:
         cmd: python src/evaluate.py
         deps:
@@ -41,8 +34,8 @@ stages:
         - src/model.py
         - data/processed/test.csv
         - params.yaml
-        - model.pth      # 明確依賴模型檔案
-        - item_map.json  # 明確依賴 Mapping
+        - model.pth
+        - item_map.json
         metrics:
         - metrics.json:
             cache: false

@@ -1,67 +1,84 @@
 import pandas as pd
 import yaml
 import os
-import redis
 import json
+from datasets import load_dataset
+from sklearn.model_selection import train_test_split
 
 with open("params.yaml") as f:
     params = yaml.safe_load(f)
 
-def push_to_redis(df):
-    """將最新的使用者歷史推送到 Redis (模擬 Feature Store)"""
-    try:
-        r = redis.Redis(
-            host=params['redis']['host'], 
-            port=params['redis']['port'], 
-            db=params['redis']['db']
-        )
-        # 簡單測試連線，若失敗則跳過
-        r.ping()
-        print("Connected to Redis, syncing user history...")
-        
-        # 依照 User 分組，取最近的互動
-        user_history = df.groupby('visitorid')['itemid'].apply(list).to_dict()
-        
-        pipe = r.pipeline()
-        for user, items in user_history.items():
-            # 只存最後 max_len 個
-            recent_items = items[-params['model']['max_len']:]
-            pipe.set(f"user:{user}", json.dumps(recent_items), ex=params['redis']['ttl'])
-        pipe.execute()
-        print("Redis sync complete.")
-    except Exception as e:
-        print(f"Skipping Redis sync (Service not available): {e}")
-
 def process_data():
-    df = pd.read_csv(params['data']['raw_path'])
+    print("🚀 Loading Amazon Reviews 2023 from Hugging Face...")
     
-    # 基礎清理
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    # 指定類別，例如 "All_Beauty" (美妝), "Fashion" (時尚)
+    # 完整列表可見: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023
+    category = "All_Beauty" 
+    
+    # 1. 載入評論數據 (User-Item Interactions)
+    # trust_remote_code=True 是必須的，因為這是自定義 loading script
+    dataset = load_dataset("McAuley-Lab/Amazon-Reviews-2023", f"raw_review_{category}", split="full", trust_remote_code=True)
+    
+    # 轉為 Pandas DataFrame (為了方便後續處理，若資料量太大建議用 PyArrow)
+    # 這裡示範取前 10 萬筆或是依照記憶體大小調整
+    df = dataset.to_pandas()
+    
+    # 保留需要的欄位
+    # 新版欄位名稱: rating, title, text, images, asin, parent_asin, user_id, timestamp
+    df = df[['user_id', 'parent_asin', 'timestamp']]
+    df.columns = ['visitorid', 'itemid', 'timestamp']
+    
+    # 2. 建立 Item Map
+    unique_items = df['itemid'].unique()
+    item_map = {asin: i+1 for i, asin in enumerate(unique_items)}
+    
+    with open(params['data']['item_map_path'], 'w') as f:
+        json.dump(item_map, f)
+    
+    df['item_idx'] = df['itemid'].map(item_map)
+    
+    # 3. 載入 Metadata (商品資訊)
+    print("📦 Loading Metadata...")
+    meta_dataset = load_dataset("McAuley-Lab/Amazon-Reviews-2023", f"raw_meta_{category}", split="full", trust_remote_code=True)
+    meta_df = meta_dataset.to_pandas()
+    
+    metadata_map = {}
+    # 建立查找表
+    # 新版 Metadata 欄位: title, price, average_rating, main_category, images (list)
+    for _, row in meta_df.iterrows():
+        asin = row['parent_asin'] # 注意: 新版使用 parent_asin 作為主要 ID
+        if asin in item_map:
+            # 取得第一張圖 (大圖)
+            img_url = row['images']['large'][0] if row['images'] and len(row['images']['large']) > 0 else None
+            
+            metadata_map[str(item_map[asin])] = {
+                "name": row['title'],
+                "image": img_url,
+                "asin": asin,
+                "price": row.get('price', 'N/A')
+            }
+
+    with open(params['data']['metadata_path'], 'w') as f:
+        json.dump(metadata_map, f)
+        
+    print(f"✅ Metadata processed for {len(metadata_map)} items.")
+
+    # 4. 排序與分割 (邏輯不變)
     df = df.sort_values(['visitorid', 'timestamp'])
     
-    # 過濾少於 N 次互動的 items
-    item_counts = df['itemid'].value_counts()
+    item_counts = df['item_idx'].value_counts()
     valid_items = item_counts[item_counts >= params['data']['min_item_count']].index
-    df = df[df['itemid'].isin(valid_items)]
+    df = df[df['item_idx'].isin(valid_items)]
 
-    # [Train/Test Split Strategy]: Time-based split
-    # 取最後 20% 的時間點作為測試，或者依據最後一次互動
-    # 這裡示範：每個使用者的最後一次互動放入 Test (Leave-One-Out) 或依全局時間切分
-    # 為簡單起見，這裡採用全局時間切分 (Time Split)
-    
-    split_date = df['timestamp'].quantile(1 - params['data']['test_size'])
-    
-    train_df = df[df['timestamp'] <= split_date].copy()
-    test_df = df[df['timestamp'] > split_date].copy()
+    split_idx = int(len(df) * (1 - params['data']['test_size']))
+    train_df = df.iloc[:split_idx].copy()
+    test_df = df.iloc[split_idx:].copy()
 
     os.makedirs("data/processed", exist_ok=True)
     train_df.to_csv(params['data']['processed_train_path'], index=False)
     test_df.to_csv(params['data']['processed_test_path'], index=False)
     
-    print(f"Data split done. Train: {len(train_df)}, Test: {len(test_df)}")
-    
-    # 更新 Redis 供 API 使用
-    push_to_redis(df)
+    print(f"🎉 Data split done. Train: {len(train_df)}, Test: {len(test_df)}")
 
 if __name__ == "__main__":
     process_data()

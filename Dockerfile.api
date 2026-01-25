@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 COPY api/ ./api/
 COPY src/ ./src/
 COPY params.yaml .
+COPY init_redis.py .
 # model.pth 與 item_map.json 會由 docker-compose 的 volumes 掛載
 
 EXPOSE 8000

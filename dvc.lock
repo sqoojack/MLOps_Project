@@ -3,91 +3,103 @@ stages:
   preprocess:
     cmd: python src/features.py
     deps:
-    - path: data/raw/events.csv
+    - path: data/raw/meta_Beauty.json.gz
       hash: md5
-      md5: fddaf7c1c6a9df23a726500a08ffdd7e
-      size: 94237913
+      md5: f018e35b6c0d58f9737f0556af0cfb1e
+      size: 99156148
+    - path: data/raw/reviews_Beauty_5.json.gz
+      hash: md5
+      md5: 5d2ccdcd86641efcfbae344317c10829
+      size: 44819276
     - path: params.yaml
       hash: md5
-      md5: e99842cadb39eb3c85cb678c530eaa33
-      size: 547
+      md5: 8306b642b18ecf5d1e48a6216ea081e1
+      size: 788
     - path: src/features.py
       hash: md5
-      md5: c69a10c06fb4dd22bcea8dcce775a2ff
-      size: 2402
+      md5: c9bcaf702780190d19721eb9aa0c569b
+      size: 3310
     outs:
     - path: data/processed/test.csv
       hash: md5
-      md5: 09186ef91ee7b13bfb56eef86a0c8c5d
-      size: 25030826
+      md5: 127f31ad9d4e75e11c75f4ffd85248f8
+      size: 7294800
     - path: data/processed/train.csv
       hash: md5
-      md5: 40d28b803786286ab966c8f66ae03f1d
-      size: 100105332
+      md5: be0d8919732b736e9eeabfe188c372e8
+      size: 29179990
+    - path: item_map.json
+      hash: md5
+      md5: 33f3ce8186ce17351f9aff4d6ac0de4c
+      size: 2365325
+    - path: items_metadata.json
+      hash: md5
+      md5: f00b33153a1de113352fefa90db6a473
+      size: 27037441
   train:
     cmd: python src/train.py
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: 09186ef91ee7b13bfb56eef86a0c8c5d
-      size: 25030826
+      md5: 127f31ad9d4e75e11c75f4ffd85248f8
+      size: 7294800
     - path: data/processed/train.csv
       hash: md5
-      md5: 40d28b803786286ab966c8f66ae03f1d
-      size: 100105332
-    - path: params.yaml
-      hash: md5
-      md5: e99842cadb39eb3c85cb678c530eaa33
-      size: 547
-    - path: src/model.py
-      hash: md5
-      md5: c449432c245b10d5b90bb69dae632f45
-      size: 2504
-    - path: src/train.py
-      hash: md5
-      md5: 04ae99943af66f7d0a4d35ce119dcf5a
-      size: 6973
-    outs:
+      md5: be0d8919732b736e9eeabfe188c372e8
+      size: 29179990
     - path: item_map.json
       hash: md5
-      md5: b5831c275a7df13a48367567de7c147c
-      size: 1513527
+      md5: 33f3ce8186ce17351f9aff4d6ac0de4c
+      size: 2365325
+    - path: params.yaml
+      hash: md5
+      md5: 8306b642b18ecf5d1e48a6216ea081e1
+      size: 788
+    - path: src/model.py
+      hash: md5
+      md5: 2517b0e89f245dfbb04014013a3ceee3
+      size: 3778
+    - path: src/train.py
+      hash: md5
+      md5: 580abd2d32256ee9416fe97b7288cd40
+      size: 6617
+    outs:
     - path: model.pth
       hash: md5
-      md5: c05dc1606778deb40006cd13e14f3816
-      size: 47074035
+      md5: 17a737b874637476e5a7853c10102d74
+      size: 233650521
   evaluate:
     cmd: python src/evaluate.py
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: 09186ef91ee7b13bfb56eef86a0c8c5d
-      size: 25030826
+      md5: 127f31ad9d4e75e11c75f4ffd85248f8
+      size: 7294800
     - path: item_map.json
       hash: md5
-      md5: b5831c275a7df13a48367567de7c147c
-      size: 1513527
+      md5: 33f3ce8186ce17351f9aff4d6ac0de4c
+      size: 2365325
     - path: model.pth
       hash: md5
-      md5: c05dc1606778deb40006cd13e14f3816
-      size: 47074035
+      md5: 17a737b874637476e5a7853c10102d74
+      size: 233650521
     - path: params.yaml
       hash: md5
-      md5: e99842cadb39eb3c85cb678c530eaa33
-      size: 547
+      md5: 8306b642b18ecf5d1e48a6216ea081e1
+      size: 788
     - path: src/evaluate.py
       hash: md5
-      md5: 80a34d5fbd95cecaf37a5b7b5511c53d
-      size: 3086
+      md5: b8de9cbd60b2d4d275d173078d48833e
+      size: 2774
     - path: src/model.py
       hash: md5
-      md5: c449432c245b10d5b90bb69dae632f45
-      size: 2504
+      md5: 2517b0e89f245dfbb04014013a3ceee3
+      size: 3778
     outs:
     - path: metrics.json
       hash: md5
-      md5: c7373c6d5753a5cd154107eaded9618e
-      size: 78
+      md5: 0d335678d33142dfe72569b134096784
+      size: 79
   train_baseline:
     cmd: python src/train_baseline.py
     deps:
