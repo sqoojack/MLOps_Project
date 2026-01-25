@@ -1,30 +1,33 @@
-# params.yaml
 data:
-  raw_path: "data/raw/events.csv"
-  processed_train_path: "data/processed/train.csv"
-  processed_test_path: "data/processed/test.csv"
-  test_size: 0.2
-  min_item_count: 5
+    processed_train_path: "data/processed/train.csv"
+    processed_test_path: "data/processed/test.csv"
+    item_map_path: "item_map.json"  # output data
+    metadata_path: "items_metadata.json"    # output data
+
+    test_size: 0.2
+    min_item_count: 3
 
 model:
-  embed_dim: 64
-  num_heads: 4
-  num_layers: 2
-  max_len: 20
-  dropout: 0.1
+    type: "GQA"      # "MHA" (標準) 或 "GQA" (優化)
+    embed_dim: 256
+    num_heads: 8     # Query Heads 數量
+    num_kv_heads: 2  # KV Heads 數量 (若 < num_heads 則啟用 GQA)
+    num_layers: 4
+    max_len: 20
+    dropout: 0.25
 
 train:
-  batch_size: 1024
-  epochs: 20
-  lr: 0.0003
-  eval_interval: 1  # 每個 epoch 都跑一次驗證
+    batch_size: 512
+    epochs: 20
+    lr: 0.0005
+    eval_interval: 1
 
 redis:
-  host: "redis"
-  port: 6379
-  db: 0
-  ttl: 86400  # 24 hours
+    host: "redis" # Docker 內用 "redis"，本機用 "localhost"
+    port: 6379
+    db: 0
+    ttl: 86400
 
 mlflow:
-  experiment_name: "RecTransformer_Experiment"
-  model_name: "RecTransformer_Prod"
+    experiment_name: "Amazon_Beauty_Rec"
+    model_name: "RecTransformer_GQA"

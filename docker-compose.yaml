@@ -22,6 +22,10 @@ services:
             - ./model.pth:/app/model.pth
             - ./params.yaml:/app/params.yaml
             - ./item_map.json:/app/item_map.json
+            - ./items_metadata.json:/app/items_metadata.json
+            - ./init_redis.py:/app/init_redis.py
+            - ./data/processed:/app/data/processed
+            - ./app.py:/app/app.py
 
     ui:
         build:

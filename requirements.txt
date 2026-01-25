@@ -12,3 +12,5 @@ pandas
 mlflow
 dvc
 redis
+datasets==2.19.0
+pyarrow

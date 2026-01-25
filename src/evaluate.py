@@ -7,7 +7,7 @@ import json
 import numpy as np
 from tqdm import tqdm
 from model import RecTransformer
-from train import RecDataset, calculate_ndcg  # 引用 train.py 中的 Dataset 和 Metric 函式
+from train import RecDataset, calculate_ndcg
 
 def evaluate():
     # 1. 載入參數
@@ -17,14 +17,12 @@ def evaluate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # 2. 載入 Item Mapping (關鍵步驟)
-    # 訓練時我們儲存了 item_map.json，評估時必須用同一個 map，
-    # 否則 ID 會對不起來 (例如訓練時 ID 1 是商品A，測試時 ID 1 變成商品B)
+    # 2. 載入 Item Mapping
     try:
         with open("item_map.json", "r") as f:
-            item_map_str = json.load(f)
-            # JSON 的 key 讀進來會變成字串，必須轉回 int
-            item_map = {int(k): v for k, v in item_map_str.items()}
+            item_map = json.load(f)
+            # [FIX] 不需要將 key 轉為 int，因為 Amazon ID 是字串
+            # 我們這裡讀進來主要是為了知道 num_items
     except FileNotFoundError:
         print("Error: item_map.json not found. Please run 'dvc repro train' first.")
         return
@@ -33,11 +31,11 @@ def evaluate():
     print(f"Loaded item map with {num_items} items.")
 
     # 3. 準備測試資料
-    # RecDataset 現在預期接收 DataFrame，而不是檔案路徑
     print("Loading test data...")
     test_df = pd.read_csv(params['data']['processed_test_path'])
     
-    test_dataset = RecDataset(test_df, item_map, params['model']['max_len'])
+    # [FIX] 不再傳入 item_map，RecDataset 會直接用 CSV 裡的 item_idx
+    test_dataset = RecDataset(test_df, params['model']['max_len'])
     test_loader = DataLoader(test_dataset, batch_size=params['train']['batch_size'], shuffle=False)
     
     print(f"Test samples: {len(test_dataset)}")
@@ -58,7 +56,6 @@ def evaluate():
     criterion = nn.CrossEntropyLoss(ignore_index=0)
     total_loss = 0
     
-    # 為了避免 tqdm 顯示問題，也可以用簡單的迴圈
     with torch.no_grad():
         for input_seq, target in tqdm(test_loader, desc="Evaluating"):
             input_seq = input_seq.to(device)

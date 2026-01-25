@@ -1,0 +1,5 @@
+outs:
+- md5: 5d2ccdcd86641efcfbae344317c10829
+  size: 44819276
+  hash: md5
+  path: reviews_Beauty_5.json.gz

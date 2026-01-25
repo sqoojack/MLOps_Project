@@ -16,33 +16,24 @@ with open("params.yaml") as f:
     params = yaml.safe_load(f)
 
 class RecDataset(Dataset):
-    def __init__(self, df, item_map, max_len=20):
-        self.df = df
-        self.item_map = item_map
-        self.max_len = max_len
+    def __init__(self, df, max_len=20):
         self.samples = []
-        
-        # 預處理：產生 Sliding Window 樣本
-        # 優化：直接過濾並轉換，避免多次迴圈
-        user_groups = self.df.groupby('visitorid')['itemid'].apply(list)
+        user_groups = df.groupby('visitorid')['item_idx'].apply(list)
         
         print(f"Processing {len(user_groups)} users for sliding window sequences...")
         
-        for user_items in tqdm(user_groups, desc="Building Sequences"):
-            # 將 itemid 轉為整數 ID
-            # 注意：這裡確保 item 為 Python int，雖然 map 已經轉了，但多一層防護
-            seq = [self.item_map[i] for i in user_items if i in self.item_map]
-            
+        for seq in tqdm(user_groups, desc="Building Sequences"):
+            # seq 已經是 int list，直接使用
             if len(seq) < 2:
                 continue
                 
             # Sliding Window 策略
             for i in range(1, len(seq)):
                 input_seq = seq[:i]
-                if len(input_seq) > self.max_len:
-                    input_seq = input_seq[-self.max_len:]
+                if len(input_seq) > max_len:
+                    input_seq = input_seq[-max_len:]
                 
-                pad_len = self.max_len - len(input_seq)
+                pad_len = max_len - len(input_seq)
                 input_seq = [0] * pad_len + input_seq
                 
                 target = seq[i]
@@ -76,18 +67,22 @@ def train():
     train_df = pd.read_csv(params['data']['processed_train_path'])
     test_df = pd.read_csv(params['data']['processed_test_path'])
     
-    # [FIX]: 解決 json int64 錯誤的關鍵點
-    # 1. 取得所有 unique items
-    all_items = set(train_df['itemid'].unique()) | set(test_df['itemid'].unique())
-    
-    # 2. 強制轉型：使用 int(item) 確保 Key 是 Python 原生 int，而不是 numpy.int64
-    item_map = {int(item): i+1 for i, item in enumerate(all_items)}
-    
-    num_items = len(item_map)
+    # [FIX] 直接讀取 features.py 產生的 item_map.json 來知道有多少商品
+    # 不需要再自己生成 map，也不會發生 int() 轉換錯誤
+    try:
+        with open(params['data']['item_map_path'], 'r') as f:
+            item_map = json.load(f)
+        num_items = len(item_map)
+    except FileNotFoundError:
+        # Fallback (不建議，但以防萬一)
+        print("Warning: item_map.json not found. Estimating from data...")
+        num_items = max(train_df['item_idx'].max(), test_df['item_idx'].max())
+
     print(f"Total unique items: {num_items}")
     
-    train_dataset = RecDataset(train_df, item_map, params['model']['max_len'])
-    test_dataset = RecDataset(test_df, item_map, params['model']['max_len'])
+    # [FIX] Dataset 不再需要傳入 item_map
+    train_dataset = RecDataset(train_df, params['model']['max_len'])
+    test_dataset = RecDataset(test_df, params['model']['max_len'])
     
     print(f"Training samples: {len(train_dataset)}")
     print(f"Testing samples: {len(test_dataset)}")
@@ -167,10 +162,7 @@ def train():
                 if avg_val_loss < best_loss:
                     best_loss = avg_val_loss
                     mlflow.pytorch.log_model(model, "model", registered_model_name=params['mlflow']['model_name'])
-                    
-                    # 儲存 Item Map 供 API 使用 (使用修正後的 map)
-                    with open("item_map.json", "w") as f:
-                        json.dump(item_map, f)
+                    # 不需要再儲存 item_map，因為 features.py 已經存好了
 
     torch.save(model.state_dict(), "model.pth")
     print("Training complete. Model saved to model.pth")
