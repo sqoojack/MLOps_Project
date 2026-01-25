@@ -9,3 +9,6 @@ data/*.csv
 .dvc/
 # dvc.lock
 /mlruns/
+data/processed/
+/model.pth
+/item_map.json

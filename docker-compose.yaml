@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+    api:
+        build: 
+            context: .
+            dockerfile: Dockerfile.api
+        ports:
+            - "8000:8000"
+        networks:         # 確保在同一個網路
+            - mlops_network
+        volumes:
+            - ./model.pth:/app/model.pth
+            - ./params.yaml:/app/params.yaml
+            - ./item_map.json:/app/item_map.json
+
+    ui:
+        build:
+            context: .
+            dockerfile: Dockerfile.ui
+        ports:
+            - "8501:8501"
+        environment:
+            - API_URL=http://api:8000/recommend
+        depends_on:
+            - api
+        networks:
+            - mlops_network
+
+networks:
+    mlops_network:
