@@ -8,17 +8,17 @@ data:
     min_item_count: 3
 
 model:
-    type: "GQA"      # "MHA" (標準) 或 "GQA" (優化)
-    embed_dim: 256
-    num_heads: 8     # Query Heads 數量
-    num_kv_heads: 2  # KV Heads 數量 (若 < num_heads 則啟用 GQA)
+    type: "gqa"       # 選項: "gqa" (你的優化版) 或 "vanilla" (原始版)
+    embed_dim: 512
+    num_heads: 16     # Query Heads 數量
+    num_kv_heads: 1   # 只有 type="gqa" 時生效 (1 = GQA/MQA, 4 = MHA)
     num_layers: 4
     max_len: 20
-    dropout: 0.25
+    dropout: 0.3
 
 train:
     batch_size: 512
-    epochs: 20
+    epochs: 30
     lr: 0.0005
     eval_interval: 1
 

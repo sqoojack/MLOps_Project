@@ -8,10 +8,10 @@ import os
 # 如果是在本地直接跑 streamlit，請使用 http://localhost:8000
 API_URL = os.getenv("API_URL", "http://localhost:8000/recommend")
 
-st.set_page_config(page_title="Amazon Beauty 推薦系統", layout="wide")
+st.set_page_config(page_title="Amazon智能推薦系統", layout="wide")
 
-st.title("🛍️ 個人化商品推薦系統")
-st.subheader("基於 Transformer (GQA) 與 MLOps 架構")
+st.title("User商品推薦系統")
+st.subheader("Used by MLOps & Transformer architecture (GQA)")
 
 # 使用者輸入區
 user_id = st.text_input("輸入 User ID (例如: AF7EIDL62ECTXDFW2DNIIIN6LSKQ)", "")

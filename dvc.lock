@@ -13,8 +13,8 @@ stages:
       size: 44819276
     - path: params.yaml
       hash: md5
-      md5: 8306b642b18ecf5d1e48a6216ea081e1
-      size: 788
+      md5: 5a85a98b22322c4aa7fff4aaf34f73d4
+      size: 817
     - path: src/features.py
       hash: md5
       md5: c9bcaf702780190d19721eb9aa0c569b
@@ -53,21 +53,21 @@ stages:
       size: 2365325
     - path: params.yaml
       hash: md5
-      md5: 8306b642b18ecf5d1e48a6216ea081e1
-      size: 788
+      md5: 5a85a98b22322c4aa7fff4aaf34f73d4
+      size: 817
     - path: src/model.py
       hash: md5
-      md5: 2517b0e89f245dfbb04014013a3ceee3
-      size: 3778
+      md5: e86e00c5c3e72f8b7a7c025a38a3c34e
+      size: 7328
     - path: src/train.py
       hash: md5
-      md5: 580abd2d32256ee9416fe97b7288cd40
-      size: 6617
+      md5: 4e3493d45c4f37a28921aae066851030
+      size: 6921
     outs:
     - path: model.pth
       hash: md5
-      md5: 17a737b874637476e5a7853c10102d74
-      size: 233650521
+      md5: 725c9fbe1e7225ff6e0b990237973493
+      size: 470506841
   evaluate:
     cmd: python src/evaluate.py
     deps:
@@ -81,25 +81,25 @@ stages:
       size: 2365325
     - path: model.pth
       hash: md5
-      md5: 17a737b874637476e5a7853c10102d74
-      size: 233650521
+      md5: 725c9fbe1e7225ff6e0b990237973493
+      size: 470506841
     - path: params.yaml
       hash: md5
-      md5: 8306b642b18ecf5d1e48a6216ea081e1
-      size: 788
+      md5: 5a85a98b22322c4aa7fff4aaf34f73d4
+      size: 817
     - path: src/evaluate.py
       hash: md5
-      md5: b8de9cbd60b2d4d275d173078d48833e
-      size: 2774
+      md5: 3cfd3d68b7cff50063a071a9cd384c5e
+      size: 5898
     - path: src/model.py
       hash: md5
-      md5: 2517b0e89f245dfbb04014013a3ceee3
-      size: 3778
+      md5: e86e00c5c3e72f8b7a7c025a38a3c34e
+      size: 7328
     outs:
     - path: metrics.json
       hash: md5
-      md5: 0d335678d33142dfe72569b134096784
-      size: 79
+      md5: 02588014460d733df09259c42444e917
+      size: 1272
   train_baseline:
     cmd: python src/train_baseline.py
     deps:

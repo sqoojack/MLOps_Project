@@ -1,0 +1,5 @@
+{
+    "vanilla_latency_ms": 198.37284088134766,
+    "gqa_latency_ms": 17.452001571655273,
+    "speedup_ratio": 11.366767305564284
+}
