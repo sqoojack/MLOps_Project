@@ -9,7 +9,7 @@ import mlflow.pytorch
 import numpy as np
 from tqdm import tqdm
 import json
-from model import RecTransformer
+from model import RecTransformer, VanillaRecTransformer
 
 # 載入參數
 with open("params.yaml") as f:
@@ -93,9 +93,16 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    model = RecTransformer(num_items).to(device)
-    criterion = nn.CrossEntropyLoss(ignore_index=0)
-    optimizer = optim.Adam(model.parameters(), lr=params['train']['lr'])
+    model_type = params['model'].get('type', 'gqa') # 預設為 gqa
+    print(f"Initializing model type: {model_type}")
+    
+    if model_type == "vanilla":
+        model = VanillaRecTransformer(num_items).to(device)
+    else:
+        model = RecTransformer(num_items).to(device)
+        
+    criterion = nn.CrossEntropyLoss(ignore_index=0, label_smoothing=0.1)
+    optimizer = optim.AdamW(model.parameters(), lr=params['train']['lr'], weight_decay=0.05)
 
     with mlflow.start_run():
         mlflow.log_params(params['model'])

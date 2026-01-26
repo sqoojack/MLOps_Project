@@ -38,4 +38,5 @@ stages:
         - item_map.json
         metrics:
         - metrics.json:
+            persist: true
             cache: false

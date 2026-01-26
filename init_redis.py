@@ -1,3 +1,4 @@
+# python init_redis.py
 import redis
 import yaml
 import json

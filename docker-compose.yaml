@@ -25,7 +25,7 @@ services:
             - ./items_metadata.json:/app/items_metadata.json
             - ./init_redis.py:/app/init_redis.py
             - ./data/processed:/app/data/processed
-            - ./app.py:/app/app.py
+            
 
     ui:
         build:
@@ -39,6 +39,8 @@ services:
             - api
         networks:
             - mlops_network
+        volumes:
+            - ./app.py:/app/app.py
 
 networks:
     mlops_network:
