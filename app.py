@@ -10,7 +10,7 @@ API_URL = os.getenv("API_URL", "http://localhost:8000/recommend")
 
 st.set_page_config(page_title="Amazon智能推薦系統", layout="wide")
 
-st.title("User商品推薦系統")
+st.title("AI-Powered Recommender System")
 st.subheader("Used by MLOps & Transformer architecture (GQA)")
 
 # 使用者輸入區
