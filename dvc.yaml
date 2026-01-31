@@ -1,17 +1,18 @@
 stages:
-    # 1. 資料處理 (ETL)
+    # 1. 資料處理 (ETL) - 現在包含價格修復
     preprocess:
         cmd: python src/features.py
         deps:
         - src/features.py
         - params.yaml
-        - data/raw/reviews_Beauty_5.json.gz  # 改為追蹤新的資料集
-        - data/raw/meta_Beauty.json.gz
+        # 若資料來源是來自特定檔案，可以保留這些 deps，
+        # DVC 會偵測這些檔變更才重新執行
+        - data/raw/meta_Beauty.json.gz.dvc 
         outs:
         - data/processed/train.csv
         - data/processed/test.csv
-        - item_map.json           # output
-        - items_metadata.json     # output
+        - item_map.json
+        - items_metadata.json # 確保 features.py 產生這個
 
     # 2. 訓練 Transformer 模型
     train:
@@ -22,7 +23,7 @@ stages:
         - src/train.py
         - src/model.py
         - params.yaml
-        - item_map.json           # train.py 需要讀取這個來知道 num_items
+        - item_map.json
         outs:
         - model.pth
 
