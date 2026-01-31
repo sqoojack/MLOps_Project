@@ -1,21 +1,62 @@
-version: '3.8'
 services:
-    # 1. 新增 Redis 服務
+    # 1. Redis 服務 (不變)
     redis:
         image: redis:alpine
         ports:
             - "6379:6379"
         networks:
             - mlops_network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 30s
+            retries: 50
 
-    data_fix:
-        image: python:3.10-slim
+    # 2. [已移除] data_fix 服務 (由 Airflow + DVC 取代)
+
+    # 3. Airflow Webserver (介面)
+    airflow-webserver:
+        build:
+            context: .
+            dockerfile: Dockerfile.airflow
+        command: webserver
+        ports:
+            - "8080:8080"
+        environment:
+            - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+            - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/project/airflow.db
+            - AIRFLOW__CORE__LOAD_EXAMPLES=False
+            # 設定預設帳號密碼，方便登入
+            - _AIRFLOW_DB_UPGRADE=true
+            - _AIRFLOW_WWW_USER_CREATE=true
+            - _AIRFLOW_WWW_USER_USERNAME=admin
+            - _AIRFLOW_WWW_USER_PASSWORD=admin
         volumes:
-            - ./items_metadata.json:/app/items_metadata.json
-            - ./src/fix_prices.py:/app/fix_prices.py
-        working_dir: /app
-        command: python src/fix_prices.py
+            - ./airflow/dags:/opt/airflow/dags  # 掛載 DAG
+            - .:/opt/airflow/project            # 掛載整個專案代碼，讓 Airflow 能執行 src/
+        networks:
+            - mlops_network
 
+    # 4. Airflow Scheduler (核心排程器，負責執行 DVC)
+    airflow-scheduler:
+        build:
+            context: .
+            dockerfile: Dockerfile.airflow
+        command: scheduler
+        environment:
+            - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+            - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/project/airflow.db
+            - AIRFLOW__CORE__LOAD_EXAMPLES=False
+            - _AIRFLOW_DB_UPGRADE=true
+        volumes:
+            - ./airflow/dags:/opt/airflow/dags
+            - .:/opt/airflow/project            # 關鍵：讓 Scheduler 能讀寫你的專案檔案
+        networks:
+            - mlops_network
+        depends_on:
+            - airflow-webserver
+
+    # 5. API 服務
     api:
         build: 
             context: .
@@ -24,19 +65,20 @@ services:
             - "8000:8000"
         networks:
             - mlops_network
-        depends_on:  # 2. 確保 API 等 Redis 啟動後才啟動
-            - data_fix
-            - redis
+        depends_on:
+            redis:
+                condition: service_healthy
+            # 不需要 data_fix 了，也不需要等 airflow，因為 airflow 是背景執行的
         volumes:
+            # 掛載點保持不變，這樣 Airflow 更新檔案後，API 重啟或讀取時能拿到新的
             - ./model.pth:/app/model.pth
             - ./params.yaml:/app/params.yaml
             - ./item_map.json:/app/item_map.json
             - ./items_metadata.json:/app/items_metadata.json
             - ./init_redis.py:/app/init_redis.py
             - ./data/processed:/app/data/processed
-
             
-
+    # 6. UI 服務 (不變)
     ui:
         build:
             context: .
@@ -45,7 +87,7 @@ services:
             - "8501:8501"
         environment:
             - API_URL=http://api:8000
-            - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll   # 確保即時更新生效
+            - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
             - STREAMLIT_SERVER_RUN_ON_SAVE=true
         depends_on:
             - api
