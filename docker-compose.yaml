@@ -12,9 +12,9 @@ services:
         image: python:3.10-slim
         volumes:
             - ./items_metadata.json:/app/items_metadata.json
-            - ./preprocess/fix_prices.py:/app/fix_prices.py
+            - ./src/fix_prices.py:/app/fix_prices.py
         working_dir: /app
-        command: python preprocess/fix_prices.py
+        command: python src/fix_prices.py
 
     api:
         build: 
