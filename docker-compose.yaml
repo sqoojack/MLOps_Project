@@ -8,6 +8,14 @@ services:
         networks:
             - mlops_network
 
+    data_fix:
+        image: python:3.10-slim
+        volumes:
+            - ./items_metadata.json:/app/items_metadata.json
+            - ./preprocess/fix_prices.py:/app/fix_prices.py
+        working_dir: /app
+        command: python preprocess/fix_prices.py
+
     api:
         build: 
             context: .
@@ -17,6 +25,7 @@ services:
         networks:
             - mlops_network
         depends_on:  # 2. 確保 API 等 Redis 啟動後才啟動
+            - data_fix
             - redis
         volumes:
             - ./model.pth:/app/model.pth
@@ -25,6 +34,7 @@ services:
             - ./items_metadata.json:/app/items_metadata.json
             - ./init_redis.py:/app/init_redis.py
             - ./data/processed:/app/data/processed
+
             
 
     ui:
@@ -35,6 +45,8 @@ services:
             - "8501:8501"
         environment:
             - API_URL=http://api:8000
+            - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll   # 確保即時更新生效
+            - STREAMLIT_SERVER_RUN_ON_SAVE=true
         depends_on:
             - api
         networks:
