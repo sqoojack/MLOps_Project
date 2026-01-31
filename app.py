@@ -156,7 +156,7 @@ tab_browse, tab_recs = st.tabs(["🛒 Browse Shop", "🎯 For You (Recommendatio
 # === TAB 1: BROWSE ===
 with tab_browse:
     # 1. Page Control Logic
-    MAX_PAGES = 4
+    MAX_PAGES = 20
     
     # Grid Layout
     current_page = st.session_state.page
@@ -196,6 +196,7 @@ with tab_browse:
                     with c2:
                         if st.button("➕ Add", key=f"add_{item['item_idx']}"):
                             add_to_cart(item)
+                            st.rerun()
                     
                     if st.button("⚡ Buy Now", key=f"buy_{item['item_idx']}", type="primary"):
                         add_to_cart(item)
