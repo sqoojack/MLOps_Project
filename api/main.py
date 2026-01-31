@@ -214,3 +214,18 @@ def recommend(req: RecRequest):
 def predict(req: PredictionRequest):
     recs = _get_predictions(req.recent_interactions)
     return {"recommendations": recs, "source": "input_list"}
+
+class ResetRequest(BaseModel):
+    user_id: str
+
+@app.delete("/history")
+def reset_history(user_id: str):
+    """
+    [New] 清除特定使用者的瀏覽歷史
+    """
+    if redis_client is None:
+        raise HTTPException(status_code=503, detail="Redis unavailable")
+    
+    redis_key = f"user:{user_id}"
+    redis_client.delete(redis_key)
+    return {"status": "success", "message": f"History for user {user_id} has been reset."}
