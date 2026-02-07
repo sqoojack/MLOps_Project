@@ -7,7 +7,7 @@ stages:
         - params.yaml
         # 若資料來源是來自特定檔案，可以保留這些 deps，
         # DVC 會偵測這些檔變更才重新執行
-        - data/raw/meta_Beauty.json.gz.dvc 
+        - data/raw/meta_Beauty.json.gz
         outs:
         - data/processed/train.csv
         - data/processed/test.csv

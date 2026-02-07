@@ -31,8 +31,11 @@ def process_data():
     unique_items = df['itemid'].unique()
     item_map = {asin: i+1 for i, asin in enumerate(unique_items)}
     
-    # 儲存 item_map
-    os.makedirs(os.path.dirname(params['data']['item_map_path']), exist_ok=True)
+    # store item_map
+    item_map_dir = os.path.dirname(params['data']['item_map_path'])
+    if item_map_dir:  
+        os.makedirs(item_map_dir, exist_ok=True)
+        
     with open(params['data']['item_map_path'], 'w') as f:
         json.dump(item_map, f)
     
@@ -68,6 +71,9 @@ def process_data():
             }
 
     # 儲存 metadata
+    metadata_dir = os.path.dirname(params['data']['metadata_path'])
+    if metadata_dir:
+        os.makedirs(metadata_dir, exist_ok=True)
     with open(params['data']['metadata_path'], 'w') as f:
         json.dump(metadata_map, f)
         
