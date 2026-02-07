@@ -7,18 +7,17 @@ stages:
       hash: md5
       md5: f018e35b6c0d58f9737f0556af0cfb1e
       size: 99156148
-    - path: data/raw/reviews_Beauty_5.json.gz
-      hash: md5
-      md5: 5d2ccdcd86641efcfbae344317c10829
-      size: 44819276
+      isexec: true
     - path: params.yaml
       hash: md5
       md5: 5a85a98b22322c4aa7fff4aaf34f73d4
       size: 817
+      isexec: true
     - path: src/features.py
       hash: md5
-      md5: c9bcaf702780190d19721eb9aa0c569b
-      size: 3310
+      md5: 4c1bd67cf9aa8b8dbc9405add5a58769
+      size: 3528
+      isexec: true
     outs:
     - path: data/processed/test.csv
       hash: md5
@@ -34,8 +33,8 @@ stages:
       size: 2365325
     - path: items_metadata.json
       hash: md5
-      md5: f00b33153a1de113352fefa90db6a473
-      size: 27037441
+      md5: bcdc21288b4622e35e08a701dfd4cf88
+      size: 27280901
   train:
     cmd: python src/train.py
     deps:

@@ -26,11 +26,13 @@ services:
             - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
             - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/project/airflow.db
             - AIRFLOW__CORE__LOAD_EXAMPLES=False
-            # 設定預設帳號密碼，方便登入
+            
+            - AIRFLOW__WEBSERVER__SECRET_KEY=mlops_secret_key_12345
+
             - _AIRFLOW_DB_UPGRADE=true
             - _AIRFLOW_WWW_USER_CREATE=true
-            - _AIRFLOW_WWW_USER_USERNAME=admin
-            - _AIRFLOW_WWW_USER_PASSWORD=admin
+            - _AIRFLOW_WWW_USER_USERNAME=sqoojack
+            - _AIRFLOW_WWW_USER_PASSWORD=alicksas
         volumes:
             - ./airflow/dags:/opt/airflow/dags  # 掛載 DAG
             - .:/opt/airflow/project            # 掛載整個專案代碼，讓 Airflow 能執行 src/
@@ -46,6 +48,9 @@ services:
         environment:
             - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
             - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/project/airflow.db
+            
+            - AIRFLOW__WEBSERVER__SECRET_KEY=mlops_secret_key_12345
+
             - AIRFLOW__CORE__LOAD_EXAMPLES=False
             - _AIRFLOW_DB_UPGRADE=true
         volumes:

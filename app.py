@@ -36,6 +36,12 @@ st.markdown("""
         border-radius: 10px;
         margin-bottom: 20px;
     }
+    .cart-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -43,16 +49,13 @@ st.markdown("""
 # State Management
 # -----------------------------------------------------------------------------
 if "user_id" not in st.session_state:
-    st.session_state.user_id = "1"  # 簡化預設 ID
+    st.session_state.user_id = "1"
 
 if "page" not in st.session_state:
     st.session_state.page = 1
 
 if "cart" not in st.session_state:
     st.session_state.cart = []
-
-if "show_checkout" not in st.session_state:
-    st.session_state.show_checkout = False
 
 if "browse_cache" not in st.session_state:
     st.session_state.browse_cache = {}
@@ -63,6 +66,12 @@ if "browse_cache" not in st.session_state:
 def add_to_cart(item):
     st.session_state.cart.append(item)
     st.toast(f"✅ Added '{item['name'][:20]}...' to Cart")
+
+def remove_from_cart(index):
+    if 0 <= index < len(st.session_state.cart):
+        removed_item = st.session_state.cart.pop(index)
+        st.toast(f"🗑️ Removed '{removed_item['name'][:20]}...' from Cart")
+        st.rerun()
 
 def like_item(item):
     payload = {"user_id": st.session_state.user_id, "item_idx": item['item_idx']}
@@ -83,6 +92,33 @@ def reset_history():
             st.error("Failed to reset history")
     except Exception as e:
         st.error(f"Connection Error: {e}")
+
+# -----------------------------------------------------------------------------
+# Item Details Modal (Dialog)
+# -----------------------------------------------------------------------------
+@st.dialog("🔍 Product Details")
+def show_item_details(item):
+    st.subheader(item.get('name', 'Unknown Product'))
+    
+    # Display large image
+    img = item.get('image')
+    st.image(img if img and img != "None" else "https://via.placeholder.com/300", use_container_width=True)
+    
+    st.markdown(f"### Price: <span style='color:#B12704'>{item.get('price', 'N/A')}</span>", unsafe_allow_html=True)
+    st.write(f"**ASIN/ID:** {item.get('asin', 'N/A')}")
+    st.write(f"**Item Index:** {item.get('item_idx', 'N/A')}")
+    
+    st.divider()
+    
+    # Action buttons inside modal
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("❤️ Like", key=f"modal_like_{item['item_idx']}"):
+            like_item(item)
+    with col2:
+        if st.button("🛒 Add to Cart", key=f"modal_add_{item['item_idx']}", type="primary"):
+            add_to_cart(item)
+            st.rerun()
 
 # -----------------------------------------------------------------------------
 # Checkout Modal (Dialog)
@@ -108,8 +144,7 @@ def checkout_dialog():
         st.balloons()
         st.success("Payment Successful! Thank you for your purchase.")
         st.session_state.cart = [] # Clear cart
-        st.session_state.show_checkout = False
-        # st.rerun() # Dialogs auto-close on interaction usually, or wait for user to close
+        st.rerun()
 
 # -----------------------------------------------------------------------------
 # Sidebar
@@ -129,9 +164,18 @@ with st.sidebar:
         if st.button("Proceed to Checkout"):
             checkout_dialog()
             
-        with st.expander("View Cart Details"):
+        with st.expander("View Cart Details", expanded=True):
+            # Iterate with index to allow removal
             for i, item in enumerate(st.session_state.cart):
-                st.caption(f"{i+1}. {item['name'][:20]}... - {item.get('price')}")
+                # Using columns for layout: Name/Price | Remove Button
+                c_info, c_remove = st.columns([4, 1])
+                with c_info:
+                    st.caption(f"{i+1}. {item['name'][:15]}... ({item.get('price')})")
+                with c_remove:
+                    # Unique key is essential here
+                    if st.button("❌ ", key=f"remove_{i}", help="Remove from cart"):
+                        remove_from_cart(i)
+                        
     else:
         st.info("Your cart is empty.")
 
@@ -149,22 +193,17 @@ with st.sidebar:
 # -----------------------------------------------------------------------------
 # Main Tabs
 # -----------------------------------------------------------------------------
-st.title("🛍️ AI-Powered Store")
+st.title("🛍️ Simulated Amazon Marketplace")
 
-tab_browse, tab_recs = st.tabs(["🛒 Browse Shop", "🎯 For You (Recommendations)"])
+tab_browse, tab_recs = st.tabs(["🛒 Shop All", "Recommendation For You"])
 
 # === TAB 1: BROWSE ===
 with tab_browse:
-    # 1. Page Control Logic
-    MAX_PAGES = 20
-    
-    # Grid Layout
+    MAX_PAGES = 40
     current_page = st.session_state.page
     
-    # Fetch Data if needed
     if current_page not in st.session_state.browse_cache:
         try:
-            # 增加請求數量以填滿頁面
             response = requests.get(URL_BROWSE, params={"limit": 12})
             if response.status_code == 200:
                 st.session_state.browse_cache[current_page] = response.json()
@@ -173,7 +212,6 @@ with tab_browse:
 
     items = st.session_state.browse_cache.get(current_page, [])
 
-    # Display Grid (4x3)
     if items:
         cols = st.columns(4)
         for idx, item in enumerate(items):
@@ -194,13 +232,14 @@ with tab_browse:
                         if st.button("❤️ Like", key=f"like_{item['item_idx']}"):
                             like_item(item)
                     with c2:
-                        if st.button("➕ Add", key=f"add_{item['item_idx']}"):
+                        # Modified: Add to Cart button
+                        if st.button("➕ Cart", key=f"add_{item['item_idx']}"):
                             add_to_cart(item)
                             st.rerun()
                     
-                    if st.button("⚡ Buy Now", key=f"buy_{item['item_idx']}", type="primary"):
-                        add_to_cart(item)
-                        checkout_dialog()
+                    # Modified: View Button triggers details modal
+                    if st.button("View Details", key=f"view_{item['item_idx']}", type="secondary"):
+                        show_item_details(item)
 
     # Pagination UI
     st.write("---")
@@ -229,18 +268,14 @@ with tab_browse:
 with tab_recs:
     st.subheader(f"Recommendations for User: {st.session_state.user_id}")
     
-    # 使用 container 來包裝刷新按鈕和狀態
     with st.container():
         col_btn, col_status = st.columns([1, 3])
         with col_btn:
-            # 這裡的 button 只是為了觸發 Rerun
             refresh = st.button("🔄 Refresh Recommendations", type="primary")
         with col_status:
-            # 顯示最後更新時間，讓使用者知道系統真的有在運作
             st.caption(f"Last updated: {datetime.datetime.now().strftime('%H:%M:%S')}")
 
     try:
-        # 每次進入此頁面或點擊刷新，都會重新發送 POST 請求
         response = requests.post(URL_RECOMMEND, json={"user_id": st.session_state.user_id})
         
         if response.status_code == 200:
@@ -249,11 +284,10 @@ with tab_recs:
             source = data.get("source", "unknown")
             
             if source == "cold_start" or not recs:
-                st.warning("🧐 Not enough data yet. Go to 'Browse Shop' and Like/Buy some items!")
+                st.warning("Not enough data yet. Go to 'Browse Shop' and Like/Buy some items!")
             else:
-                st.success(f"🎯 Personalized for you (Source: {source})")
+                st.success(f"Personalized for you (Source: {source})")
                 
-                # 顯示推薦結果
                 for item in recs:
                     with st.container(border=True):
                         c1, c2, c3 = st.columns([1, 3, 1])
@@ -265,12 +299,14 @@ with tab_recs:
                             st.write(item.get('asin', 'N/A'))
                             st.markdown(f"**Price:** {item.get('price', 'N/A')}")
                         with c3:
-                            st.write("") # Spacer
+                            st.write("") 
                             st.write("")
-                            if st.button("View", key=f"rec_{item['item_idx']}"):
-                                st.toast("Opening item details...")
-                            if st.button("Add Rec", key=f"add_rec_{item['item_idx']}"):
+                            # Modified: View Button triggers details modal
+                            if st.button("View", key=f"rec_view_{item['item_idx']}"):
+                                show_item_details(item)
+                            if st.button("Add to Cart", key=f"rec_add_{item['item_idx']}"):
                                 add_to_cart(item)
+                                st.rerun()
         else:
             st.error(f"Backend Error: {response.text}")
             

@@ -29,10 +29,13 @@ with DAG(
 ) as dag:
 
     # 步驟 1: 拉取最新資料 (模擬從 Feature Store 或 DB 同步)
-    # 如果是真實 Near-line，這一步通常會執行 dvc pull 或執行 SQL ETL 腳本
     pull_data = BashOperator(
         task_id='pull_data_and_code',
-        bash_command=f'cd {PROJECT_PATH} && git pull && dvc pull',
+        bash_command=(
+        # f'git config --global --add safe.directory {PROJECT_PATH} && '
+        # f'cd {PROJECT_PATH} && git pull && dvc pull'
+        f'cd {PROJECT_PATH} &&  dvc pull -f'
+        ),
     )
 
     # 這裡的指令會在 airflow-scheduler 容器內執行
