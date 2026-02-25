@@ -5,7 +5,6 @@ import pytest
 import torch
 import yaml
 
-# [FIX]: 將專案根目錄加入 path，這樣才能 import src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.model import RecTransformer

@@ -22,7 +22,6 @@ def init_redis():
         # 隨機挑選 10 個真實使用者
         sample_users = df['visitorid'].unique()
         selected_users = random.sample(list(sample_users), 10)
-        # 手動加入一個好記的測試帳號 (如果數據集裡剛好有，或者我們可以假造一個)
         
         print(f"Seeding {len(selected_users)} users...")
         
