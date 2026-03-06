@@ -24,32 +24,34 @@ app = FastAPI()
 with open("params.yaml") as f:
     params = yaml.safe_load(f)
 
-# 載入 item_map
+item_map_path = params.get('data', {}).get('item_map_path', 'artifacts/item_map.json')
 try:
-    with open("item_map.json", "r") as f:
+    with open(item_map_path, "r") as f:
         item_map = json.load(f)
     num_items = len(item_map)
 except FileNotFoundError:
-    print("Warning: item_map.json not found. Model may fail to initialize.")
+    print(f"Warning: {item_map_path} not found. Model may fail to initialize.")
     item_map = {}
     num_items = 100 # Fallback
 
 # 載入 Metadata
+metadata_path = params.get('data', {}).get('metadata_path', 'artifacts/items_metadata.json')
 try:
-    with open("items_metadata.json", "r") as f:
+    with open(metadata_path, "r") as f:
         metadata = json.load(f)
 except FileNotFoundError:
-    print("Warning: items_metadata.json not found.")
+    print(f"Warning: {metadata_path} not found.")
     metadata = {}
 
 # 載入模型
 device = torch.device("cpu")
 model = RecTransformer(num_items)
 
-if os.path.exists("model.pth"):
-    model.load_state_dict(torch.load("model.pth", map_location=device))
+model_path = params.get('data', {}).get('model_path', 'artifacts/model.pth')
+if os.path.exists(model_path):
+    model.load_state_dict(torch.load(model_path, map_location=device))
 else:
-    print("Warning: model.pth not found. Using untrained model.")
+    print(f"Warning: {model_path} not found. Using untrained model.")
 model.eval()
 
 # 連線 Redis

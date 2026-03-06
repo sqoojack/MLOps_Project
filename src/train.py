@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 import json
 from model import RecTransformer, VanillaRecTransformer
+import os
 
 # 載入參數
 with open("params.yaml") as f:
@@ -171,8 +172,10 @@ def train():
                     mlflow.pytorch.log_model(model, "model", registered_model_name=params['mlflow']['model_name'])
                     # 不需要再儲存 item_map，因為 features.py 已經存好了
 
-    torch.save(model.state_dict(), "model.pth")
-    print("Training complete. Model saved to model.pth")
+    model_path = params.get('data', {}).get('model_path', 'artifacts/model.pth')
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    torch.save(model.state_dict(), model_path)
+    print(f"Training complete. Model saved to {model_path}")
 
 if __name__ == "__main__":
     train()

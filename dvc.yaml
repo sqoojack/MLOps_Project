@@ -1,19 +1,17 @@
 stages:
-    # 1. 資料處理 (ETL) - 現在包含價格修復
     preprocess:
         cmd: python src/features.py
         deps:
         - src/features.py
         - params.yaml
-        - feature/events_processed.csv  # 讓 DVC 追蹤 Redis 萃取出來的最新事件檔
+        - feature/events_processed.csv  
         - data/raw/meta_Beauty.json.gz
         outs:
         - data/processed/train.csv
         - data/processed/test.csv
-        - item_map.json
-        - items_metadata.json # 確保 features.py 產生這個
+        - artifacts/item_map.json         
+        - artifacts/items_metadata.json   
 
-    # 2. 訓練 Transformer 模型
     train:
         cmd: python src/train.py
         deps:
@@ -22,11 +20,10 @@ stages:
         - src/train.py
         - src/model.py
         - params.yaml
-        - item_map.json
+        - artifacts/item_map.json        
         outs:
-        - model.pth
+        - artifacts/model.pth             
 
-    # 3. 評估階段
     evaluate:
         cmd: python src/evaluate.py
         deps:
@@ -34,8 +31,8 @@ stages:
         - src/model.py
         - data/processed/test.csv
         - params.yaml
-        - model.pth
-        - item_map.json
+        - artifacts/model.pth             
+        - artifacts/item_map.json        
         metrics:
         - metrics.json:
             persist: true

@@ -1,29 +1,30 @@
 data:
     processed_train_path: "data/processed/train.csv"
     processed_test_path: "data/processed/test.csv"
-    item_map_path: "item_map.json"  # output data
-    metadata_path: "items_metadata.json"    # output data
+    item_map_path: "artifacts/item_map.json"        # 修改此行
+    metadata_path: "artifacts/items_metadata.json"  # 修改此行
+    model_path: "artifacts/model.pth"               # 新增此行
 
     test_size: 0.2
-    min_item_count: 3
+    min_item_count: 20
 
 model:
-    type: "gqa"       # 選項: "gqa" (你的優化版) 或 "vanilla" (原始版)
-    embed_dim: 512
-    num_heads: 16     # Query Heads 數量
-    num_kv_heads: 1   # 只有 type="gqa" 時生效 (1 = GQA/MQA, 4 = MHA)
-    num_layers: 4
+    type: "gqa"       
+    embed_dim: 128
+    num_heads: 4     
+    num_kv_heads: 1   
+    num_layers: 2
     max_len: 20
     dropout: 0.3
 
 train:
     batch_size: 512
     epochs: 30
-    lr: 0.0005
+    lr: 0.001
     eval_interval: 1
 
 redis:
-    host: "redis" # Docker 內用 "redis"，本機用 "localhost"
+    host: "redis" 
     port: 6379
     db: 0
     ttl: 86400

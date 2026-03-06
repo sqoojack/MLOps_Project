@@ -58,11 +58,12 @@ def evaluate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    item_map_path = params.get('data', {}).get('item_map_path', 'artifacts/item_map.json')
     try:
-        with open("item_map.json", "r") as f:
+        with open(item_map_path, "r") as f:
             item_map = json.load(f)
     except FileNotFoundError:
-        print("Error: item_map.json not found.")
+        print(f"Error: {item_map_path} not found.")
         return
 
     num_items = len(item_map)
@@ -90,8 +91,9 @@ def evaluate():
         model = RecTransformer(num_items).to(device)
 
     # 載入權重
+    model_path = params.get('data', {}).get('model_path', 'artifacts/model.pth')
     try:
-        model.load_state_dict(torch.load("model.pth", map_location=device))
+        model.load_state_dict(torch.load(model_path, map_location=device))
         print("Model loaded successfully.")
     except Exception as e:
         print(f"Error loading model: {e}")
@@ -157,36 +159,6 @@ def evaluate():
         })
 
     print("評估指標已寫入 MLflow")
-
-    # print("\n" + "="*40)
-    # print(f"Final Test Results (N={num_samples}):")
-    # print(f"Loss: {final_metrics['test_loss']:.4f}")
-    # print("-" * 20)
-    # print(f"Metric      | Model   | Baseline")
-    # print(f"------------|---------|---------")
-    # print(f"NDCG@10     | {final_metrics['model_ndcg_10']:.4f}  | {final_metrics['baseline_ndcg_10']:.4f}")
-    # print(f"Recall@10   | {final_metrics['model_recall_10']:.4f}  | {final_metrics['baseline_recall_10']:.4f}")
-    # print(f"MRR@10      | {final_metrics['model_mrr_10']:.4f}  | {final_metrics['baseline_mrr_10']:.4f}")
-    # print("="*40)
-
-    # metrics_file = "metrics.json"
-    # final_metrics["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # final_metrics["model_type"] = params['model'].get('type', 'gqa') # 從 params 讀取當前模型類型
-
-    # history = []
-    # if os.path.exists(metrics_file):
-    #     try:
-    #         with open(metrics_file, "r") as f:
-    #             history = json.load(f)
-    #             if isinstance(history, dict):
-    #                 history = [history]
-    #     except (json.JSONDecodeError, FileNotFoundError):
-    #         history = []
-    # history.append(final_metrics)
-    # with open(metrics_file, "w") as f:
-    #     json.dump(history, f, indent=4)
-        
-    # print(f"Metrics appended to {metrics_file}")
 
 if __name__ == "__main__":
     evaluate()
