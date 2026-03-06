@@ -1,4 +1,13 @@
 import pandas as pd
+"""
+The function `process_data` loads Amazon Reviews 2023 dataset, processes the data by creating item
+maps, handling metadata including fixing prices, and then sorts and splits the data into training
+and testing sets.
+:return: The `process_data()` function processes Amazon reviews data, creates item mapping, loads
+metadata, fixes prices for items with missing price info, sorts and splits the data into training
+and testing sets, and saves the processed data into CSV files. The function does not return any
+value explicitly.
+"""
 import yaml
 import os
 import json
@@ -40,6 +49,42 @@ def process_data():
         json.dump(item_map, f)
     
     df['item_idx'] = df['itemid'].map(item_map)
+    
+    # 新增點: 載入 Redis 產生的新互動資料並合併
+    new_events_path = "feature/events_processed.csv"
+    if os.path.exists(new_events_path):
+        print(f"Loading new events from {new_events_path}...")
+        new_events_df = pd.read_csv(new_events_path)
+        
+        # 檢查timestamp是否存在
+        if 'timestamp' not in new_events_df.columns:
+            print("⚠️ Warning: 'timestamp' column missing in events file. Skipping local events.")
+            records = []
+        else:
+            # 根據先前的格式: user_id, item_sequence, timestamp 進行解析
+            records = []
+            for _, row in new_events_df.iterrows():
+                uid = str(row['user_id'])
+                ts = int(row['timestamp'])
+                
+                # 將字串 "1,2,5" 轉回獨立的事件紀錄
+                if pd.notna(row['item_sequence']):
+                    seq = str(row['item_sequence']).split(',')
+                    for item_idx_str in seq:
+                        if item_idx_str.strip():
+                            records.append({
+                                'visitorid': uid,
+                                'itemid': 'LOCAL_NEW_ITEM', # 新增事件不依賴原始 asin
+                                'timestamp': ts,
+                                'item_idx': int(item_idx_str.strip())
+                            })
+            if records:
+                local_df = pd.DataFrame(records)
+                # 將新事件合併進主資料集
+                df = pd.concat([df, local_df], ignore_index=True)
+                print(f"Merged {len(records)} new interaction events.")
+    else:
+        print("⚠️ No local new events found. Using baseline dataset only.")
     
     # 3. 載入 Metadata 並同時處理價格 (Merge fix_prices logic)
     print("📦 Loading Metadata and Fixing Prices...")

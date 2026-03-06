@@ -37,20 +37,24 @@ with DAG(
         f'cd {PROJECT_PATH} &&  dvc pull -f'
         ),
     )
+    
+    # 2. 從 Redis 撈取最新使用者互動事件，寫入 /feature/events_processed.csv
+    extract_events = BashOperator(
+        task_id='extract_redis_events',
+        bash_command=f'cd {PROJECT_PATH} && python src/extract_latest_events.py',
+    )
 
-    # 這裡的指令會在 airflow-scheduler 容器內執行
-    # 因為我們掛載了本機目錄到 /opt/airflow/project
-    # 所以容器內產生的檔案變更，會直接反映到你的實體硬碟上
+    # 3. 執行 DVC Pipeline
     run_pipeline = BashOperator(
         task_id='run_dvc_pipeline',
         bash_command=f'cd {PROJECT_PATH} && dvc repro',
     )
 
-    # 步驟 3: (可選) 推送新模型到 Registry 或 DVC Remote
+    # 4: (可選) 推送新模型到 Registry 或 DVC Remote
     push_results = BashOperator(
         task_id='push_model_and_metrics',
         bash_command=f'cd {PROJECT_PATH} && dvc push',
     )
 
     # 設定依賴關係
-    pull_data >> run_pipeline >> push_results
+    pull_data >> extract_events >> run_pipeline >> push_results

@@ -140,36 +140,53 @@ def evaluate():
         "baseline_recall_10": metrics_baseline["recall"] / num_samples,
         "baseline_mrr_10": metrics_baseline["mrr"] / num_samples,
     }
+    
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////opt/airflow/project/mlflow.db")
+    mlflow.set_tracking_uri(mlflow_uri)
+    mlflow.set_experiment(params['mlflow']['experiment_name'])
+    
+    # 建立一個標記為 Evaluation 的 Run
+    with mlflow.start_run(run_name="Daily_Test_Evaluation"):
+        mlflow.log_param("model_type", params['model'].get('type', 'gqa'))
+        mlflow.log_metrics({
+            "eval_test_loss": final_metrics["test_loss"],
+            "eval_model_ndcg_10": final_metrics["model_ndcg_10"],
+            "eval_model_recall_10": final_metrics["model_recall_10"],
+            "eval_model_mrr_10": final_metrics["model_mrr_10"],
+            "eval_baseline_ndcg_10": final_metrics["baseline_ndcg_10"]
+        })
 
-    print("\n" + "="*40)
-    print(f"Final Test Results (N={num_samples}):")
-    print(f"Loss: {final_metrics['test_loss']:.4f}")
-    print("-" * 20)
-    print(f"Metric      | Model   | Baseline")
-    print(f"------------|---------|---------")
-    print(f"NDCG@10     | {final_metrics['model_ndcg_10']:.4f}  | {final_metrics['baseline_ndcg_10']:.4f}")
-    print(f"Recall@10   | {final_metrics['model_recall_10']:.4f}  | {final_metrics['baseline_recall_10']:.4f}")
-    print(f"MRR@10      | {final_metrics['model_mrr_10']:.4f}  | {final_metrics['baseline_mrr_10']:.4f}")
-    print("="*40)
+    print("評估指標已寫入 MLflow")
 
-    metrics_file = "metrics.json"
-    final_metrics["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    final_metrics["model_type"] = params['model'].get('type', 'gqa') # 從 params 讀取當前模型類型
+    # print("\n" + "="*40)
+    # print(f"Final Test Results (N={num_samples}):")
+    # print(f"Loss: {final_metrics['test_loss']:.4f}")
+    # print("-" * 20)
+    # print(f"Metric      | Model   | Baseline")
+    # print(f"------------|---------|---------")
+    # print(f"NDCG@10     | {final_metrics['model_ndcg_10']:.4f}  | {final_metrics['baseline_ndcg_10']:.4f}")
+    # print(f"Recall@10   | {final_metrics['model_recall_10']:.4f}  | {final_metrics['baseline_recall_10']:.4f}")
+    # print(f"MRR@10      | {final_metrics['model_mrr_10']:.4f}  | {final_metrics['baseline_mrr_10']:.4f}")
+    # print("="*40)
 
-    history = []
-    if os.path.exists(metrics_file):
-        try:
-            with open(metrics_file, "r") as f:
-                history = json.load(f)
-                if isinstance(history, dict):
-                    history = [history]
-        except (json.JSONDecodeError, FileNotFoundError):
-            history = []
-    history.append(final_metrics)
-    with open(metrics_file, "w") as f:
-        json.dump(history, f, indent=4)
+    # metrics_file = "metrics.json"
+    # final_metrics["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # final_metrics["model_type"] = params['model'].get('type', 'gqa') # 從 params 讀取當前模型類型
+
+    # history = []
+    # if os.path.exists(metrics_file):
+    #     try:
+    #         with open(metrics_file, "r") as f:
+    #             history = json.load(f)
+    #             if isinstance(history, dict):
+    #                 history = [history]
+    #     except (json.JSONDecodeError, FileNotFoundError):
+    #         history = []
+    # history.append(final_metrics)
+    # with open(metrics_file, "w") as f:
+    #     json.dump(history, f, indent=4)
         
-    print(f"Metrics appended to {metrics_file}")
+    # print(f"Metrics appended to {metrics_file}")
 
 if __name__ == "__main__":
     evaluate()

@@ -5,8 +5,7 @@ stages:
         deps:
         - src/features.py
         - params.yaml
-        # 若資料來源是來自特定檔案，可以保留這些 deps，
-        # DVC 會偵測這些檔變更才重新執行
+        - feature/events_processed.csv  # 讓 DVC 追蹤 Redis 萃取出來的最新事件檔
         - data/raw/meta_Beauty.json.gz
         outs:
         - data/processed/train.csv

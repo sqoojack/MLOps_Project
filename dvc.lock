@@ -8,6 +8,10 @@ stages:
       md5: f018e35b6c0d58f9737f0556af0cfb1e
       size: 99156148
       isexec: true
+    - path: feature/events_processed.csv
+      hash: md5
+      md5: 17d89795485f224bc153e9d2bf43c51e
+      size: 532
     - path: params.yaml
       hash: md5
       md5: 5a85a98b22322c4aa7fff4aaf34f73d4
@@ -15,26 +19,26 @@ stages:
       isexec: true
     - path: src/features.py
       hash: md5
-      md5: 4c1bd67cf9aa8b8dbc9405add5a58769
-      size: 3528
+      md5: 3274fd9db5e75fdb675ad6b0a4c2b845
+      size: 5809
       isexec: true
     outs:
     - path: data/processed/test.csv
       hash: md5
-      md5: 127f31ad9d4e75e11c75f4ffd85248f8
-      size: 7294800
+      md5: d564eaffa99a9d0b84a12380333f13a9
+      size: 7294978
     - path: data/processed/train.csv
       hash: md5
-      md5: be0d8919732b736e9eeabfe188c372e8
-      size: 29179990
+      md5: 6d93e80a44bd5e25df3c1a31c9ae9f06
+      size: 29180576
     - path: item_map.json
       hash: md5
       md5: 33f3ce8186ce17351f9aff4d6ac0de4c
       size: 2365325
     - path: items_metadata.json
       hash: md5
-      md5: bcdc21288b4622e35e08a701dfd4cf88
-      size: 27280901
+      md5: 56190fe9fa7ed3bb8ffcb71cd8f8d5ca
+      size: 27280867
   train:
     cmd: python src/train.py
     deps:

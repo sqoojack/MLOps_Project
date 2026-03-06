@@ -80,6 +80,9 @@ git commit -m "Add train stage to DVC pipeline"
 ```
 mlflow ui
 ```
+```
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
 ### 將所有佔用port的process都關閉
 ```
 fuser -k 5000/tcp

@@ -13,3 +13,4 @@ data/processed/
 /model.pth
 /item_map.json
 /items_metadata.json
+**/tree-sitter-*/
