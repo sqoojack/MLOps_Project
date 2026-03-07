@@ -10,6 +10,7 @@ from model import RecTransformer, VanillaRecTransformer
 from train import RecDataset
 import os
 from datetime import datetime
+import mlflow
 
 # 定義一個通用的指標計算函數，避免重複排序
 def calculate_metrics(logits, target, k=10):
@@ -143,7 +144,7 @@ def evaluate():
         "baseline_mrr_10": metrics_baseline["mrr"] / num_samples,
     }
     
-    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////opt/airflow/project/mlflow.db")
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment(params['mlflow']['experiment_name'])
     

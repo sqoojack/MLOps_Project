@@ -14,7 +14,7 @@ stages:
       size: 32
     - path: params.yaml
       hash: md5
-      md5: 25db73af8433bac8be12f7e23c37b026
+      md5: e43d47ac6fcfee9f7ac546e255ab58f3
       size: 731
       isexec: true
     - path: src/features.py
@@ -29,8 +29,8 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: d89bbf06fd5416a01f4f9e622168cc25
-      size: 27280835
+      md5: ac95949d26fb2f61c719e1f7b11c5ddf
+      size: 27281054
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f
@@ -56,7 +56,7 @@ stages:
       size: 17285612
     - path: params.yaml
       hash: md5
-      md5: 25db73af8433bac8be12f7e23c37b026
+      md5: e43d47ac6fcfee9f7ac546e255ab58f3
       size: 731
       isexec: true
     - path: src/model.py
@@ -66,11 +66,47 @@ stages:
       isexec: true
     - path: src/train.py
       hash: md5
-      md5: 3a11c3ddda4e68022be24bcd93c2c76e
-      size: 7075
+      md5: 2b5622faab2792a21ae73494a31fad8b
+      size: 6136
       isexec: true
     outs:
     - path: artifacts/model.pth
       hash: md5
-      md5: 96e8253f99e5de500bfa9ae876212e22
+      md5: b63c14b643f2d033284ce357c0fed264
       size: 116065897
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: artifacts/item_map.json
+      hash: md5
+      md5: 33f3ce8186ce17351f9aff4d6ac0de4c
+      size: 2365325
+    - path: artifacts/model.pth
+      hash: md5
+      md5: b63c14b643f2d033284ce357c0fed264
+      size: 116065897
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 88d441eaf265b9201cae0382c7402b3f
+      size: 4321389
+    - path: params.yaml
+      hash: md5
+      md5: e43d47ac6fcfee9f7ac546e255ab58f3
+      size: 731
+      isexec: true
+    - path: src/evaluate.py
+      hash: md5
+      md5: e3ccf9051dcb5f7027de99c7d3327125
+      size: 5562
+      isexec: true
+    - path: src/model.py
+      hash: md5
+      md5: e86e00c5c3e72f8b7a7c025a38a3c34e
+      size: 7328
+      isexec: true
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 02588014460d733df09259c42444e917
+      size: 1272
+      isexec: true

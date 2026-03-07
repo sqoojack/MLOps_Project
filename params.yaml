@@ -15,7 +15,7 @@ model:
     num_kv_heads: 1   
     num_layers: 2
     max_len: 20
-    dropout: 0.3
+    dropout: 0.4
 
 train:
     batch_size: 512
