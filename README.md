@@ -109,3 +109,6 @@ git commit -m "Add category_tree.csv to DVC"
 ```
 - **dvc.lock:**
 是 DVC 用來「鎖定」和「記錄」當前 pipeline 各階段輸入、輸出和指令的狀態檔。
+
+### RESTful API v.s FastAPI
+- 使用 FastAPI 框架開發 RESTful API，實現模型推論服務與使用者行為追蹤系統

@@ -22,6 +22,7 @@ services:
         command: webserver
         ports:
             - "8080:8080"
+        user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
         environment:
             - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
             - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/project/airflow.db
@@ -44,6 +45,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.airflow
+        user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
         command: scheduler
         environment:
             - AIRFLOW__CORE__EXECUTOR=SequentialExecutor

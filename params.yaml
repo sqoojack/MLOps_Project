@@ -15,12 +15,12 @@ model:
     num_kv_heads: 1   
     num_layers: 2
     max_len: 20
-    dropout: 0.4
+    dropout: 0.3
 
 train:
     batch_size: 512
     epochs: 30
-    lr: 0.001
+    lr: 0.0015
     eval_interval: 1
 
 redis:

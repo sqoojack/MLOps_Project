@@ -14,3 +14,4 @@ data/processed/
 /item_map.json
 /items_metadata.json
 **/tree-sitter-*/
+/artifacts/
