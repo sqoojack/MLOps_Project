@@ -33,6 +33,10 @@ except FileNotFoundError:
     print(f"Warning: {item_map_path} not found. Model may fail to initialize.")
     item_map = {}
     num_items = 100 # Fallback
+    
+# 初始化 Boto3 SageMaker Runtime 客戶端
+sm_runtime = boto3.client('sagemaker-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+ENDPOINT_NAME = os.getenv('SAGEMAKER_ENDPOINT_NAME', 'recsys-endpoint')
 
 # 載入 Metadata
 metadata_path = params.get('data', {}).get('metadata_path', 'artifacts/items_metadata.json')
@@ -97,6 +101,21 @@ def _get_predictions(recent_interactions: list[int], top_k=10):
         seq = seq[-max_len:]
     else:
         seq = [0] * (max_len - len(seq)) + seq
+        
+    # 透過網路將序列發送至 SageMaker PyTorch Endpoint
+    payload = json.dumps({"inputs": seq, "top_k": top_k})
+    
+    try:
+        response = sm_runtime.invoke_endpoint(
+            EndpointName=ENDPOINT_NAME,
+            ContentType='application/json',
+            Body=payload
+        )
+        result = json.loads(response['Body'].read().decode())
+        return result.get('recommendations', [])
+    except Exception as e:
+        print(f"SageMaker Inference Error: {e}")
+        return []
     
     input_tensor = torch.tensor([seq], dtype=torch.long).to(device)
     with torch.no_grad():

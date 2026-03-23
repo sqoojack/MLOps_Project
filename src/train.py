@@ -52,11 +52,20 @@ def calculate_ndcg(pred_scores, target_item, k=10):
 def train():
     mlflow.set_experiment(params['mlflow']['experiment_name'])
     
-    train_df = pd.read_csv(params['data']['processed_train_path'])
-    test_df = pd.read_csv(params['data']['processed_test_path'])
+    # 擷取 SageMaker 環境變數，若在本地執行則使用預設值
+    sm_train_dir = os.environ.get('SM_CHANNEL_TRAIN', '')
+    sm_model_dir = os.environ.get('SM_MODEL_DIR', params.get('data', {}).get('model_path', 'artifacts/'))
+    
+    # 動態決定資料路徑
+    train_path = os.path.join(sm_train_dir, 'train.csv') if sm_train_dir else params['data']['processed_train_path']
+    test_path = os.path.join(sm_train_dir, 'test.csv') if sm_train_dir else params['data']['processed_test_path']
+    item_map_path = os.path.join(sm_train_dir, 'item_map.json') if sm_train_dir else params['data']['item_map_path']
+
+    train_df = pd.read_csv(train_path)
+    test_df = pd.read_csv(test_path)
     
     try:
-        with open(params['data']['item_map_path'], 'r') as f:
+        with open(item_map_path, 'r') as f:
             item_map = json.load(f)
         num_items = len(item_map)
     except FileNotFoundError:
@@ -76,9 +85,7 @@ def train():
     else:
         model = RecTransformer(num_items).to(device)
         
-    # set Label Smoothing to 0.2 來對抗過擬合
     criterion = nn.CrossEntropyLoss(ignore_index=0, label_smoothing=0.2)
-    # 增強 L2 正規化 (Weight Decay 設為 0.1)
     optimizer = optim.AdamW(model.parameters(), lr=params['train']['lr'], weight_decay=0.25)
 
     with mlflow.start_run():
@@ -137,11 +144,13 @@ def train():
                 if avg_ndcg > best_ndcg:
                     best_ndcg = avg_ndcg
                     mlflow.pytorch.log_model(model, "model", registered_model_name=params['mlflow']['model_name'])
-                    # 立即儲存最好的權重，防止最後一個 Epoch 爛掉
-                    model_path = params.get('data', {}).get('model_path', 'artifacts/model.pth')
-                    os.makedirs(os.path.dirname(model_path), exist_ok=True)
-                    torch.save(model.state_dict(), model_path)
-                    tqdm.write("🌟 New Best NDCG! Model Saved.")
+                    os.makedirs(sm_model_dir, exist_ok=True)
+                    model_save_path = os.path.join(sm_model_dir, 'model.pth')
+                    torch.save(model.state_dict(), model_save_path)
+                    with open(os.path.join(sm_model_dir, 'model_config.json'), 'w') as f:
+                        json.dump({"num_items": num_items, "params": params['model']}, f)
+                        
+                    tqdm.write("🌟 New Best NDCG! Model Saved to both MLflow and SageMaker.")
 
     print(f"Training complete. Best NDCG: {best_ndcg:.4f}")
 
