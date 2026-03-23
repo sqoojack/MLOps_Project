@@ -1,114 +1,65 @@
-# MLOps 專案
+# MLOps 推薦系統專案
 
-如何使用 Git 與 DVC 來進行資料版本控制與建立機器學習 pipeline。
+本專案實作了一個完整的 MLOps 機器學習pipeline，用於構建與部署電子商務推薦系統。專案整合了資料版本控制 (DVC)、排程管理 (Airflow)、模型追蹤 (MLflow)、CI/CD (GitHub Actions)，並提供基於 FastAPI 的後端服務與 Streamlit 前端介面。
 
-## 前置任務
-- 創conda環境, python=3.12
-- ```pip install -r requirements.txt```
+## 系統架構與核心技術
 
-## 使用Dataset:
-公開Dataset: **RetailRocket Dataset**
+* **資料與模型版本控制**: DVC 與 Git
+* **任務排程**: Apache Airflow
+* **模型追蹤與註冊**: MLflow
+* **後端 API**: FastAPI
+* **前端 UI**: Streamlit
+* **快取與狀態管理**: Redis
+* **雲端推論整合**: 支援 AWS SageMaker Runtime
+* **持續整合/持續部署 (CI/CD)**: GitHub Actions
 
-來源: https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset
+## 1. DVC 資料流與 Pipeline 階段
 
+資料集使用 Amazon Beauty Metadata (`data/raw/meta_Beauty.json.gz`) 作為原始輸入資料。
+Pipeline 定義於 `dvc.yaml` 中，包含以下三個主要階段：
 
-## 0. 程式碼結構
+1.  **preprocess**:
+    * 執行指令: `python src/features.py`
+    * 輸出: `train.csv`, `test.csv`, `item_map.json`, `items_metadata.json`
+2.  **train**:
+    * 執行指令: `python src/train.py`
+    * 輸出: 訓練完成的模型權重檔 `model.pth`
+3.  **evaluate**:
+    * 執行指令: `python src/evaluate.py`
+    * 輸出指標: `metrics.json`
 
-```
-├─ data/raw/    # 放置原始 RetailRocket CSV
-├─ features/    # 中間資料（預處理後）
-├─ models/  # 訓練後模型存放處
-├─ src/     # 所有 Python 腳本
-├─ api/     # FastAPI 服務
-├─ airflow/     # DAG 放這裡
-├─ dvc.yaml     # DVC pipeline 定義（自動建立）
-└─ requirements.txt     # 套件依賴
-```
-
-## 1. 初始化 Git 與 DVC
-
-```
-git init    # 初始化 Git 版本控制（只要做一次）
-
-dvc init    # 初始化 DVC 專案（只要做一次）
-```
-
-## 2. 將原始資料events 加入 DVC 管理
-```
-# 將原始資料 events.csv 加入 DVC 追蹤
-dvc add data/raw/events.csv
-
-# 將 DVC metadata檔案加入 Git 版本控制
-git add data/raw/.gitignore data/raw/events.csv.dvc
-git commit -m "Add raw events.csv with DVC tracking"
-```
-
-## 3. 建立資料前處理 pipeline 階段
-```
-# 新增 pipeline 階段
-# -n:  命名為 preprocess
-# -d:  依賴檔案
-# -o:  輸出檔案
-dvc stage add -n preprocess -d src/features.py -d data/raw/events.csv -o features/events_processed.csv python src/features.py
-
-
-# 執行 pipeline 階段，產生輸出檔案
+執行完整 pipeline：
+```bash
 dvc repro
-
-
-# 將 pipeline 定義檔加入 Git
-git add dvc.yaml dvc.lock
-git commit -m "Add preprocess stage to DVC pipeline"
 ```
 
-## 4. 建立訓練模型pipeline階段
-```
-# 新增訓練階段，並命名為 train
-# 依賴前處理後資料 及 訓練程式碼，輸出模型檔案
-dvc stage add -n train -d features/events_processed.csv -d src/train.py -o models/model.pkl python src/train.py
+## 2. 服務部署 (Docker Compose)
 
-# 執行全部 pipeline（preprocess + train）
-dvc repro
+本專案使用 Docker Compose 管理微服務，定義於 `docker-compose.yaml`。
 
-# 將 pipeline 定義與鎖定檔加入 Git
-git add dvc.yaml dvc.lock
-git commit -m "Add train stage to DVC pipeline"
+### 啟動服務
+```bash
+docker-compose up -d
 ```
 
-# 查看模型
-因為已經有MLflow來記錄模型, 所以可以用MLflow UI來檢視訓練紀錄和model資訊
-```
-mlflow ui
-```
-```
-mlflow ui --backend-store-uri sqlite:///mlflow.db
-```
-### 將所有佔用port的process都關閉
-```
-fuser -k 5000/tcp
-```
+### 服務與通訊埠配置
+* **Airflow Webserver**: `http://localhost:8080` (管理 DAGs 與排程)
+* **FastAPI API**: `http://localhost:8000` (模型推論與使用者行為紀錄)
+* **Streamlit UI**: `http://localhost:8501` (模擬電商互動介面)
+* **Redis**: `localhost:6379` (儲存使用者的瀏覽與互動歷史 `user:{user_id}`)
 
-## 5. 評估模型 (建立evaluate階段)
-```
-dvc stage add -n evaluate -d models/popular_items.pkl -d data/raw/events.csv -d src/evaluate.py -o metrics/metrics.json python src/evaluate.py
-dvc repro   # 執行整個流程 (包含前面的預訓練和train階段)
-```
+## 3. API 端點說明
 
+FastAPI 提供以下 RESTful 端點：
+* `GET /browse`: 隨機回傳商品供使用者瀏覽。
+* `POST /interact`: 記錄使用者感興趣的商品 (寫入 Redis)。
+* `POST /recommend`: 根據 Redis 中紀錄的使用者互動歷史，回傳個人化推薦結果。若設定了 AWS 相關環境變數，將轉發推論請求至 SageMaker Endpoint。
+* `DELETE /history`: 清空特定使用者的互動歷史。
 
+## 4. CI/CD 流程 (GitHub Actions)
 
-# Remarks:
-- 關於還沒用到的 CSV (ex: category_tree.csv) 
-如果目前 pipeline 還沒有用到，暫時不必用 dvc add 加入 DVC 管理。
-DVC 最重要是管理「大型且需要版本追蹤的資料」，如果你未來要用，再用 dvc add 加入即可
-
-- 如何用 DVC 管理還沒用的資料?
-```
-dvc add data/raw/category_tree.csv
-git add data/raw/category_tree.csv.dvc   # 用dvc檔去追蹤data
-git commit -m "Add category_tree.csv to DVC"
-```
-- **dvc.lock:**
-是 DVC 用來「鎖定」和「記錄」當前 pipeline 各階段輸入、輸出和指令的狀態檔。
-
-### RESTful API v.s FastAPI
-- 使用 FastAPI 框架開發 RESTful API，實現模型推論服務與使用者行為追蹤系統
+專案包含自動化 CI/CD 流程，定義於 `.github/workflows/mlops.yaml`：
+1.  **單元測試**: 執行 `pytest tests/`。
+2.  **DVC Pipeline**: 當推送到 `main` 分支時，自動執行 `dvc repro` 重新訓練與評估模型。
+3.  **指標檢視**: 輸出 `metrics.json` 供驗證。
+4.  **模型註冊與晉升**: 透過腳本呼叫 MLflow Client，尋找 NDCG 指標最佳的 Run，建立模型版本並自動晉升為 `Production` 階段。
