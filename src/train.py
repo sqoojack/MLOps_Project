@@ -52,14 +52,16 @@ def calculate_ndcg(pred_scores, target_item, k=10):
 def train():
     mlflow.set_experiment(params['mlflow']['experiment_name'])
     
-    # 擷取 SageMaker 環境變數，若在本地執行則使用預設值
-    sm_train_dir = os.environ.get('SM_CHANNEL_TRAIN', '')
+    # 擷取 SageMaker 環境變數
+    sm_train_dir = os.environ.get('SM_CHANNEL_TRAIN')
+    sm_test_dir = os.environ.get('SM_CHANNEL_TEST')
+    sm_item_map_dir = os.environ.get('SM_CHANNEL_ITEM_MAP')
     sm_model_dir = os.environ.get('SM_MODEL_DIR', params.get('data', {}).get('model_path', 'artifacts/'))
     
-    # 動態決定資料路徑
-    train_path = os.path.join(sm_train_dir, 'train.csv') if sm_train_dir else params['data']['processed_train_path']
-    test_path = os.path.join(sm_train_dir, 'test.csv') if sm_train_dir else params['data']['processed_test_path']
-    item_map_path = os.path.join(sm_train_dir, 'item_map.json') if sm_train_dir else params['data']['item_map_path']
+    # 動態決定資料路徑 (SageMaker 掛載的目錄下，檔名即為上傳時的原始檔名)
+    train_path = os.path.join(sm_train_dir, os.path.basename(params['data']['processed_train_path'])) if sm_train_dir else params['data']['processed_train_path']
+    test_path = os.path.join(sm_test_dir, os.path.basename(params['data']['processed_test_path'])) if sm_test_dir else params['data']['processed_test_path']
+    item_map_path = os.path.join(sm_item_map_dir, os.path.basename(params['data']['item_map_path'])) if sm_item_map_dir else params['data']['item_map_path']
 
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)

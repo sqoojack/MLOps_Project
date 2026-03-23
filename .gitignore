@@ -1,17 +1,44 @@
-# 忽略原始 CSV 資料 (因為檔案通常會太大)
-data/*.csv
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
 
-# 忽略中間處理結果
-/features/
-/models/
+# --- Data & Features (核心修正點) ---
+data/
+feature/
+!data/**/*.dvc
+!feature/**/*.dvc
 
-# 忽略 DVC cache、鎖檔
-.dvc/
-# dvc.lock
-/mlruns/
-data/processed/
+# --- Models & Artifacts ---
+models/
+artifacts/
 /model.pth
 /item_map.json
 /items_metadata.json
+
+# --- MLOps Tools (MLflow, DVC, Airflow) ---
+mlruns/
+mlflow/
+.dvc/cache
+.dvc/tmp
+# dvc.lock 建議保留在 Git 中，以便團隊同步版本
+
+# --- Metrics & Results ---
+metrics/
+benchmark_results.json
+metrics.json
+
+# --- Databases ---
+*.db
+airflow/airflow.db
+airflow/*.log
+airflow/*.pid
+
+# --- Others ---
 **/tree-sitter-*/
-/artifacts/
+.DS_Store

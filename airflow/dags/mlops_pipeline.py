@@ -16,6 +16,8 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+airflow_env = os.environ.copy()
+
 # 定義 DAG
 # schedule_interval='@daily' 表示每天執行一次 (Near-line Batch)
 with DAG(
@@ -48,12 +50,14 @@ with DAG(
     run_pipeline = BashOperator(
         task_id='run_dvc_pipeline',
         bash_command=f'cd {PROJECT_PATH} && dvc repro',
+        env=airflow_env, 
     )
 
-    # 4: (可選) 推送新模型到 Registry 或 DVC Remote
+    # 4: 推送新模型到 Registry 或 DVC Remote
     push_results = BashOperator(
         task_id='push_model_and_metrics',
         bash_command=f'cd {PROJECT_PATH} && dvc push',
+        env=airflow_env, 
     )
 
     # 設定依賴關係

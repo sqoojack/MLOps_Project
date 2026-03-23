@@ -35,6 +35,7 @@ services:
             - _AIRFLOW_WWW_USER_USERNAME=sqoojack
             - _AIRFLOW_WWW_USER_PASSWORD=alicksas
         volumes:
+            - ./airflow:/opt/airflow  # 將本地的 airflow/ 資料夾（含 db）掛載進去
             - ./airflow/dags:/opt/airflow/dags  # 掛載 DAG
             - .:/opt/airflow/project            # 掛載整個專案代碼，讓 Airflow 能執行 src/
         networks:

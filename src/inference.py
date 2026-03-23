@@ -1,21 +1,17 @@
-# code/inference.py
 import json
 import torch
 import os
-from model import RecTransformer # 需將 model.py 一併打包進 code/ 目錄
+from model import RecTransformer # 確保此檔案與 inference.py 一起打包在 code/ 目錄下
 
-# 1. 載入模型 (SageMaker 啟動端點時執行一次)
+# 1. 載入模型
 def model_fn(model_dir):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # 讀取訓練時一起存下來的設定檔
     with open(os.path.join(model_dir, 'model_config.json'), 'r') as f:
         config = json.load(f)
     
-    # 初始化模型架構
     model = RecTransformer(config['num_items'])
     
-    # 載入權重
     model_path = os.path.join(model_dir, 'model.pth')
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
@@ -23,17 +19,27 @@ def model_fn(model_dir):
     
     return model
 
-# 2. 處理請求並執行推論 (即你原本的程式碼邏輯)
+# 2. 處理接收到的請求 (明確定義反序列化邏輯)
+def input_fn(request_body, request_content_type):
+    if request_content_type == 'application/json':
+        # request_body 在此階段是 raw bytes 或 string
+        return json.loads(request_body)
+    else:
+        raise ValueError(f"Unsupported content type: {request_content_type}")
+
+# 3. 執行推論
 def predict_fn(input_data, model):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # 此時的 input_data 已經是 input_fn 解析好的 dict
+    seq = input_data.get('inputs', [])
+    top_k = input_data.get('top_k', 10)
     
-    # 解析 FastAPI 傳來的 JSON
-    data = json.loads(input_data)
-    seq = data['inputs']
-    top_k = data.get('top_k', 10)
-    
-    # 你原本的推論邏輯
+    if not seq:
+        return []
+
+    # 直接使用模型所在的 device，避免設備不一致錯誤
+    device = next(model.parameters()).device 
     input_tensor = torch.tensor([seq], dtype=torch.long).to(device)
+    
     with torch.no_grad():
         output = model(input_tensor)
         logits = output[:, -1, :] 
@@ -41,6 +47,8 @@ def predict_fn(input_data, model):
         
     return top_indices[0].tolist()
 
-# 3. 輸出格式化 (將結果轉回 JSON 傳給 FastAPI)
-def output_fn(prediction, content_type):
-    return json.dumps({"recommendations": prediction})
+# 4. 輸出格式化
+def output_fn(prediction, accept):
+    if accept == 'application/json':
+        return json.dumps({"recommendations": prediction}), accept
+    raise ValueError(f"Unsupported accept type: {accept}")

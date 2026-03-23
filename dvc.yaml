@@ -13,16 +13,16 @@ stages:
         - artifacts/items_metadata.json   
 
     train:
-        cmd: python src/train.py
+        cmd: python src/run_sagemaker_training.py
         deps:
-        - data/processed/train.csv
-        - data/processed/test.csv
+        - src/run_sagemaker_training.py
         - src/train.py
         - src/model.py
         - params.yaml
-        - artifacts/item_map.json        
-        outs:
-        - artifacts/model.pth             
+        - data/processed/train.csv # 根據你實際的依賴路徑
+        - data/processed/test.csv
+    # 注意：移除本地的 outs (例如 artifacts/model.pth)
+    # 因為模型現在是直接儲存在 S3 並由 MLflow 進行版控，本地不會產生模型實體檔案。             
 
     evaluate:
         cmd: python src/evaluate.py
