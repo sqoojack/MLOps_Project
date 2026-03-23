@@ -7,7 +7,6 @@ __pycache__/
 env/
 venv/
 .env
-
 # --- Data & Features (核心修正點) ---
 data/
 feature/
@@ -42,3 +41,4 @@ airflow/*.pid
 # --- Others ---
 **/tree-sitter-*/
 .DS_Store
+*.env

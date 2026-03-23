@@ -18,7 +18,7 @@ services:
     airflow-webserver:
         build:
             context: .
-            dockerfile: Dockerfile.airflow
+            dockerfile: infrastructure/docker/Dockerfile.airflow
         command: webserver
         ports:
             - "8080:8080"
@@ -40,12 +40,14 @@ services:
             - .:/opt/airflow/project            # 掛載整個專案代碼，讓 Airflow 能執行 src/
         networks:
             - mlops_network
+        env_file: 
+            - .env
 
     # 4. Airflow Scheduler (核心排程器，負責執行 DVC)
     airflow-scheduler:
         build:
             context: .
-            dockerfile: Dockerfile.airflow
+            dockerfile: infrastructure/docker/Dockerfile.airflow
         user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
         command: scheduler
         environment:
@@ -63,12 +65,14 @@ services:
             - mlops_network
         depends_on:
             - airflow-webserver
+        env_file: 
+            - .env
 
     # 5. API 服務
     api:
         build: 
             context: .
-            dockerfile: Dockerfile.api
+            dockerfile: infrastructure/docker/Dockerfile.api
         ports:
             - "8000:8000"
         networks:
@@ -80,14 +84,16 @@ services:
         volumes:
             - ./artifacts:/app/artifacts        # 改為掛載資料夾
             - ./params.yaml:/app/params.yaml
-            - ./init_redis.py:/app/init_redis.py
+            - ./scripts/init_redis.py:/app/init_redis.py
             - ./data/processed:/app/data/processed
+        env_file: 
+            - .env
             
     # 6. UI 服務 (不變)
     ui:
         build:
             context: .
-            dockerfile: Dockerfile.ui
+            dockerfile: infrastructure/docker/Dockerfile.ui
         ports:
             - "8501:8501"
         environment:
@@ -99,7 +105,7 @@ services:
         networks:
             - mlops_network
         volumes:
-            - ./app.py:/app/app.py
+            - ./ui/app.py:/app/app.py
 
 networks:
     mlops_network:

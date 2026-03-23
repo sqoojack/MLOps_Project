@@ -7,6 +7,7 @@ import sys
 import os
 import redis
 import random  # [New] 用於隨機挑選瀏覽商品
+import boto3
 
 # 將 src 加入路徑
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -33,6 +34,8 @@ except FileNotFoundError:
     print(f"Warning: {item_map_path} not found. Model may fail to initialize.")
     item_map = {}
     num_items = 100 # Fallback
+    
+
     
 # 初始化 Boto3 SageMaker Runtime 客戶端
 sm_runtime = boto3.client('sagemaker-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))

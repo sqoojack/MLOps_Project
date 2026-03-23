@@ -6,7 +6,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir streamlit requests pandas
 
 # 複製前端程式碼
-COPY app.py .
+COPY ui/app.py .
 
 EXPOSE 8501
 

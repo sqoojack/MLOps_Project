@@ -14,3 +14,6 @@ dvc
 redis
 datasets==2.19.0
 pyarrow
+sagemaker
+boto3
+python-dotenv
