@@ -49,7 +49,8 @@ def main():
         framework_version='2.0.0',
         py_version='py310',
         instance_count=1,
-        instance_type='ml.g4dn.xlarge',
+        # instance_type='ml.g4dn.xlarge',   # for GPU 要付費
+        instance_type='ml.m5.large',    # for CPU 免費, 測試用
         sagemaker_session=sagemaker_session,
         output_path=f"s3://{bucket}/recsys/model_output",
         environment={
