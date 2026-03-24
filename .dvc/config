@@ -1,4 +1,7 @@
 [core]
-    remote = mylocalremote
+    remote = s3-remote
 ['remote "mylocalremote"']
     url = /tmp/dvc_remote
+['remote "s3-remote"']
+    url = s3://amazon-sagemaker-647223940998-us-east-1-bdrspfbxdutgh3/recsys/dvc-storage
+    region = us-east-1

@@ -18,7 +18,7 @@ model:
     dropout: 0.3
 
 train:
-    batch_size: 512
+    batch_size: 128
     epochs: 30
     lr: 0.0015
     eval_interval: 1

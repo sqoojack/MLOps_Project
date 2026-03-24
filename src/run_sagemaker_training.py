@@ -4,12 +4,48 @@ import yaml
 import sagemaker
 import tarfile
 import shutil
+import hashlib
+import boto3
+from botocore.exceptions import ClientError
 from sagemaker.pytorch import PyTorch
 from sagemaker.s3 import S3Downloader
 from dotenv import load_dotenv
 
 # 載入 .env 檔案中的環境變數
 load_dotenv()
+
+def get_local_file_hash(file_path):
+    """計算本地檔案的 MD5 Hash"""
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
+    """
+    智慧上傳：比對 Hash，若檔案一致則跳過上傳
+    """
+    s3_client = boto3.client('s3')
+    filename = local_path.split('/')[-1]
+    s3_key = f"{s3_prefix}/{filename}"
+    local_hash = get_local_file_hash(local_path)
+    
+    try:
+        # 取得 S3 檔案的 Metadata (包含 ETag/Hash)
+        response = s3_client.head_object(Bucket=s3_bucket, Key=s3_key)
+        s3_hash = response['ETag'].strip('"') # S3 的 ETag 通常是 MD5
+        
+        if local_hash == s3_hash:
+            print(f"檔案已存在且一致，跳過上傳: {s3_key}")
+            return f"s3://{s3_bucket}/{s3_key}"
+    except ClientError:
+        # 檔案不存在，繼續上傳
+        pass
+
+    print(f"偵測到變動，正在上傳: {filename}...")
+    return sagemaker_session.upload_data(path=local_path, bucket=s3_bucket, key_prefix=s3_prefix)
 
 def main():
     # 1. 取得與驗證環境變數
@@ -35,9 +71,9 @@ def main():
     local_test_path = params['data']['processed_test_path']
     local_item_map_path = params['data']['item_map_path']
 
-    train_s3 = sagemaker_session.upload_data(path=local_train_path, bucket=bucket, key_prefix=f"{prefix}/train")
-    test_s3 = sagemaker_session.upload_data(path=local_test_path, bucket=bucket, key_prefix=f"{prefix}/test")
-    item_map_s3 = sagemaker_session.upload_data(path=local_item_map_path, bucket=bucket, key_prefix=f"{prefix}/item_map")
+    train_s3 = upload_to_s3(local_train_path, bucket, "recsys/data/train", sagemaker_session)
+    test_s3 = upload_to_s3(local_test_path, bucket, "recsys/data/test", sagemaker_session)
+    item_map_s3 = upload_to_s3(local_item_map_path, bucket, "recsys/data/item_map", sagemaker_session)
 
     print(f"資料上傳完成:\nTrain: {train_s3}\nTest: {test_s3}\nItem Map: {item_map_s3}")
 
@@ -46,15 +82,21 @@ def main():
         entry_point='src/train.py',
         source_dir='.',
         role=role,
-        framework_version='2.0.0',
+        framework_version='2.1.0',
         py_version='py310',
         instance_count=1,
+        instance_type='local', # 先在本地模擬SageMaker
+        
+        # instance_type='ml.m5.large',    # for CPU 免費, 測試用
+        # instance_type='ml.m5.xlarge',
         # instance_type='ml.g4dn.xlarge',   # for GPU 要付費
-        instance_type='ml.m5.large',    # for CPU 免費, 測試用
         sagemaker_session=sagemaker_session,
         output_path=f"s3://{bucket}/recsys/model_output",
         environment={
-            'MLFLOW_TRACKING_URI': os.getenv('MLFLOW_TRACKING_URI', '')
+            # 傳遞憑證給雲端容器
+            'MLFLOW_TRACKING_URI': os.getenv('MLFLOW_TRACKING_URI'),
+            'MLFLOW_TRACKING_USERNAME': os.getenv('MLFLOW_TRACKING_USERNAME'),
+            'MLFLOW_TRACKING_PASSWORD': os.getenv('MLFLOW_TRACKING_PASSWORD'),
         }
     )
 
@@ -90,7 +132,7 @@ def main():
             tar.extract("model.pth", path=tmp_dir)
             shutil.move(os.path.join(tmp_dir, "model.pth"), target_output_path)
             
-        print(f"✅ 模型已成功同步至本地路徑: {target_output_path}")
+        print(f"模型已成功同步至本地路徑: {target_output_path}")
     
     # 清理臨時資料夾
     shutil.rmtree(tmp_dir)
