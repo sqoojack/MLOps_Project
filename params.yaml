@@ -19,12 +19,12 @@ model:
 
 train:
     mode: "ec2"
-    ec2_ami_id: "ami-0c101f26f147fa7fd"
+    ec2_ami_id: "ami-0345712df7cf09be1" # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.8 (Ubuntu 24.04) 20260321
     # ec2_instance_type: "t3.medium"    # CPU版本
     # ec2_instance_type: "g4dn.xlarge"    # 中階GPU
     ec2_instance_type: "g6.xlarge"  # 更快的GPU
     batch_size: 128
-    epochs: 30
+    epochs: 1
     lr: 0.0015
     eval_interval: 1
 

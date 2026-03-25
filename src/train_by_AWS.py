@@ -57,51 +57,30 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
     key_name = os.getenv('AWS_KEY_NAME')
     ecr_image_uri = os.getenv('ECR_TRAIN_IMAGE_URI')
     region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
-
-    user_data_script = f"""#!/bin/bash
-    # 基礎更新與安裝
-    yum update -y
-    yum install -y docker
-    systemctl start docker
-
-    # 1. 準備本地目錄
-    mkdir -p /tmp/input/train /tmp/input/test /tmp/input/item_map /tmp/model
-    chmod -R 777 /tmp/model
-
-    # 2. 從 S3 下載訓練資料
-    aws s3 cp {train_s3} /tmp/input/train/
-    aws s3 cp {test_s3} /tmp/input/test/
-    aws s3 cp {item_map_s3} /tmp/input/item_map/
-
-    # 3. 獲取 Instance ID 作為 Log Stream 名稱 (增加辨識度)
-    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-
-    # 4. 登入 ECR 並執行訓練容器
-    aws ecr get-login-password --region {region} | docker login --username AWS --password-stdin {ecr_image_uri.split('/')[0]}
     
-    docker run --name training_container \
-        --log-driver=awslogs \
-        --log-opt awslogs-group=/aws/ec2/MLOps-TrainingJobs \
-        --log-opt awslogs-create-group=true \
-        --log-opt awslogs-region={region} \
-        --log-opt awslogs-stream=$INSTANCE_ID \
-        -v /tmp/input/train:/opt/ml/input/data/train \
-        -v /tmp/input/test:/opt/ml/input/data/test \
-        -v /tmp/input/item_map:/opt/ml/input/data/item_map \
-        -v /tmp/model:/opt/ml/model \
-        -e SM_CHANNEL_TRAIN=/opt/ml/input/data/train \
-        -e SM_CHANNEL_TEST=/opt/ml/input/data/test \
-        -e SM_CHANNEL_ITEM_MAP=/opt/ml/input/data/item_map \
-        -e SM_MODEL_DIR=/opt/ml/model \
-        {ecr_image_uri} python src/train.py
+    # 新增：讀取 MLflow 與 S3 的相關環境變數，準備傳入容器
+    mlflow_uri = os.getenv('MLFLOW_TRACKING_URI', '')
+    mlflow_user = os.getenv('MLFLOW_TRACKING_USERNAME', '')
+    mlflow_pass = os.getenv('MLFLOW_TRACKING_PASSWORD', '')
+    s3_model_path = os.getenv('S3_MODEL_PATH', 'recsys/model_output')
 
-    # 5. 打包模型並上傳至 S3
-    cd /tmp/model && tar -czf /tmp/model.tar.gz .
-    aws s3 cp /tmp/model.tar.gz s3://{bucket}/recsys/model_output/model.tar.gz
+    script_path = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'ec2_user_data.sh')
+    with open(script_path, 'r') as f:
+        user_data_template = f.read()
 
-    # 6. 任務完成，關機
-    # shutdown -h now
-    """
+    user_data_script = user_data_template.format(
+        train_s3=train_s3,
+        test_s3=test_s3,
+        item_map_s3=item_map_s3,
+        region=region,
+        ecr_registry=ecr_image_uri.split('/')[0],
+        ecr_image_uri=ecr_image_uri,
+        bucket=bucket,
+        s3_model_path=s3_model_path,
+        mlflow_uri=mlflow_uri,
+        mlflow_user=mlflow_user,
+        mlflow_pass=mlflow_pass
+    )
 
     try:
         print(f"[1/3] 正在啟動 EC2 實例 ({instance_type})...")
@@ -114,7 +93,7 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
                 {
                     'DeviceName': '/dev/xvda', 
                     'Ebs': {
-                        'VolumeSize': 30,      # 給Dodker那些的包裝加大到 30GB
+                        'VolumeSize': 100,      # 給Docker那些的包裝加大到 30GB
                         'VolumeType': 'gp3',
                         'DeleteOnTermination': True 
                     }
