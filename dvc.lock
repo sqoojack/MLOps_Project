@@ -15,8 +15,8 @@ stages:
       isexec: true
     - path: params.yaml
       hash: md5
-      md5: 660e7a287f9de08cf7e465957b5e30ae
-      size: 732
+      md5: 32b9c7a1258da69d5f62f3a8ca35321a
+      size: 823
       isexec: true
     - path: src/features.py
       hash: md5
@@ -30,8 +30,8 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: b702cb8eaab914514e10d73dea6fd986
-      size: 27280742
+      md5: 30398a150df787bb520244595694c344
+      size: 27280644
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f
@@ -41,12 +41,8 @@ stages:
       md5: b0a1bb0d1ae1be3e70e5276a25d1c080
       size: 17285612
   train:
-    cmd: python src/train.py
+    cmd: python src/train_orchestrator.py
     deps:
-    - path: artifacts/item_map.json
-      hash: md5
-      md5: 33f3ce8186ce17351f9aff4d6ac0de4c
-      size: 2365325
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f
@@ -57,8 +53,8 @@ stages:
       size: 17285612
     - path: params.yaml
       hash: md5
-      md5: 5627e027483e45c02ced788c10b21303
-      size: 732
+      md5: 32b9c7a1258da69d5f62f3a8ca35321a
+      size: 823
       isexec: true
     - path: src/model.py
       hash: md5
@@ -67,14 +63,13 @@ stages:
       isexec: true
     - path: src/train.py
       hash: md5
-      md5: 2b5622faab2792a21ae73494a31fad8b
-      size: 6136
+      md5: 1d64c07822507067c09443a0f8af4e6b
+      size: 6970
       isexec: true
-    outs:
-    - path: artifacts/model.pth
+    - path: src/train_orchestrator.py
       hash: md5
-      md5: 0d205b23a02e99d7e690a3c675895c6b
-      size: 116065897
+      md5: 7b9e47341366fc0d2eb5e5660a1c828d
+      size: 8067
   evaluate:
     cmd: python src/evaluate.py
     deps:

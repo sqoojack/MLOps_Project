@@ -18,6 +18,9 @@ model:
     dropout: 0.3
 
 train:
+    mode: "ec2"
+    ec2_ami_id: "ami-0c101f26f147fa7fd"
+    ec2_instance_type: "t3.medium"
     batch_size: 128
     epochs: 30
     lr: 0.0015

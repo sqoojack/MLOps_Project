@@ -42,3 +42,22 @@ airflow/*.pid
 **/tree-sitter-*/
 .DS_Store
 *.env
+
+# 1. 先忽略 infrastructure/terraform/ 資料夾下的所有內容
+infrastructure/terraform/*
+
+# 2. 排除（不要忽略）main.tf 檔案
+!infrastructure/terraform/main.tf
+
+# 2. Terraform 狀態檔案 (含敏感資訊，絕對不能進 Git)
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+
+# 3. 變數檔案 (通常包含密碼或私鑰)
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

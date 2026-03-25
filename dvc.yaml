@@ -13,9 +13,9 @@ stages:
         - artifacts/items_metadata.json   
 
     train:
-        cmd: python src/run_sagemaker_training.py
+        cmd: python src/train_by_AWS.py
         deps:
-        - src/run_sagemaker_training.py
+        - src/train_by_AWS.py
         - src/train.py
         - src/model.py
         - params.yaml

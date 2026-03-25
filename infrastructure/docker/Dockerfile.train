@@ -1,0 +1,12 @@
+# infrastructure/docker/Dockerfile.train
+FROM python:3.10-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 複製整個專案，因為訓練需要 src/ 內的代碼
+COPY . .
+
+# 預設執行訓練腳本
+CMD ["python", "src/train.py"]
