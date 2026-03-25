@@ -10,7 +10,12 @@ import mlflow.pytorch
 import numpy as np
 from tqdm import tqdm
 import json
+import boto3 
+from dotenv import load_dotenv 
+from botocore.exceptions import ClientError 
 from model import RecTransformer, VanillaRecTransformer
+
+load_dotenv()
 
 with open("params.yaml") as f:
     params = yaml.safe_load(f)
@@ -50,6 +55,9 @@ def calculate_ndcg(pred_scores, target_item, k=10):
     return ndcg_sum / batch_size
 
 def train():
+    S3_BUCKET = os.getenv("S3_BUCKET_NAME")
+    S3_PATH = os.getenv("S3_MODEL_PATH")
+    
     mlflow.set_experiment(params['mlflow']['experiment_name'])
     
     # 擷取 SageMaker 環境變數
@@ -142,17 +150,27 @@ def train():
                 
                 mlflow.log_metrics({"val_loss": avg_val_loss, "ndcg_10": avg_ndcg}, step=epoch)
                 
-                # [修改點] 嚴格以 NDCG 創新高來決定是否更新 best model
+                # --- 修改點：NDCG 創新高時上傳 S3 ---
                 if avg_ndcg > best_ndcg:
                     best_ndcg = avg_ndcg
                     mlflow.pytorch.log_model(model, "model", registered_model_name=params['mlflow']['model_name'])
+                    
+                    # 1. 本地儲存
                     os.makedirs(sm_model_dir, exist_ok=True)
                     model_save_path = os.path.join(sm_model_dir, 'model.pth')
                     torch.save(model.state_dict(), model_save_path)
-                    with open(os.path.join(sm_model_dir, 'model_config.json'), 'w') as f:
+                    
+                    config_save_path = os.path.join(sm_model_dir, 'model_config.json')
+                    with open(config_save_path, 'w') as f:
                         json.dump({"num_items": num_items, "params": params['model']}, f)
-                        
-                    tqdm.write("🌟 New Best NDCG! Model Saved to both MLflow and SageMaker.")
+                    
+                    tqdm.write("New Best NDCG! Model Saved locally.")
+
+                    # 2. 上傳到 S3
+                    if S3_BUCKET and S3_PATH:
+                        upload_to_s3(model_save_path, S3_BUCKET, S3_PATH)
+                    else:
+                        tqdm.write("S3 configs missing in .env, skipping upload.")
 
     print(f"Training complete. Best NDCG: {best_ndcg:.4f}")
 

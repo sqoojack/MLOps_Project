@@ -45,11 +45,11 @@ def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
 
 def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
     """
-    同步執行的 EC2 訓練模式：啟動 -> 等待結束 -> 下載模型
+    同步執行的 EC2 訓練模式：下載資料 -> 訓練 -> 上傳模型 -> 關機
     """
     ec2 = boto3.client('ec2')
     
-    # 從 params 與 env 讀取設定 (保持不變)
+    # 從 params 與 env 讀取設定
     image_id = params['train'].get('ec2_ami_id')
     instance_type = params['train'].get('ec2_instance_type', 't3.medium')
     subnet_id = os.getenv('TRAIN_SUBNET_ID') 
@@ -58,21 +58,47 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
     ecr_image_uri = os.getenv('ECR_TRAIN_IMAGE_URI')
     region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
 
-    # UserData 腳本 (保持不變，確認最後有 shutdown -h now)
     user_data_script = f"""#!/bin/bash
+    # 基礎更新與安裝
     yum update -y
     yum install -y docker
     systemctl start docker
+
+    # 1. 準備本地目錄
+    mkdir -p /tmp/input/train /tmp/input/test /tmp/input/item_map /tmp/model
+    chmod -R 777 /tmp/model
+
+    # 2. 從 S3 下載訓練資料
+    aws s3 cp {train_s3} /tmp/input/train/
+    aws s3 cp {test_s3} /tmp/input/test/
+    aws s3 cp {item_map_s3} /tmp/input/item_map/
+
+    # 3. 獲取 Instance ID 作為 Log Stream 名稱 (增加辨識度)
+    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+
+    # 4. 登入 ECR 並執行訓練容器 (核心修改點)
     aws ecr get-login-password --region {region} | docker login --username AWS --password-stdin {ecr_image_uri.split('/')[0]}
+    
     docker run --name training_container \\
         --log-driver=awslogs \\
-        --log-opt awslogs-group=MLOps-Training-Logs \\
+        --log-opt awslogs-group=/aws/sagemaker/TrainingJobs \\
         --log-opt awslogs-region={region} \\
-        --log-opt awslogs-create-group=true \\
-        -e TRAIN_S3_PATH={train_s3} \\
-        -e TEST_S3_PATH={test_s3} \\
-        -e ARTIFACTS_BUCKET={bucket} \\
+        --log-opt awslogs-stream=$INSTANCE_ID \\
+        -v /tmp/input/train:/opt/ml/input/data/train \\
+        -v /tmp/input/test:/opt/ml/input/data/test \\
+        -v /tmp/input/item_map:/opt/ml/input/data/item_map \\
+        -v /tmp/model:/opt/ml/model \\
+        -e SM_CHANNEL_TRAIN=/opt/ml/input/data/train \\
+        -e SM_CHANNEL_TEST=/opt/ml/input/data/test \\
+        -e SM_CHANNEL_ITEM_MAP=/opt/ml/input/data/item_map \\
+        -e SM_MODEL_DIR=/opt/ml/model \\
         {ecr_image_uri} python src/train.py
+
+    # 5. 打包模型並上傳至 S3
+    cd /tmp/model && tar -czf /tmp/model.tar.gz .
+    aws s3 cp /tmp/model.tar.gz s3://{bucket}/recsys/model_output/model.tar.gz
+
+    # 6. 任務完成，關機
     # shutdown -h now
     """
 
@@ -83,12 +109,32 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
             InstanceType=instance_type,
             MinCount=1, MaxCount=1,
             KeyName=key_name,
+            BlockDeviceMappings=[
+                {
+                    'DeviceName': '/dev/xvda', 
+                    'Ebs': {
+                        'VolumeSize': 30,      # 給Dodker那些的包裝加大到 30GB
+                        'VolumeType': 'gp3',
+                        'DeleteOnTermination': True 
+                    }
+                }
+            ],
+            
             NetworkInterfaces=[{
                 'DeviceIndex': 0,
                 'SubnetId': subnet_id,
                 'Groups': [security_group_id],
                 'AssociatePublicIpAddress': True
             }],
+            
+            InstanceMarketOptions={
+                'MarketType': 'spot',
+                'SpotOptions': {
+                    'MaxPrice': '0.3', # (選填) 你願意支付的最高時薪，不填則預設為 On-Demand 價格
+                    'SpotInstanceType': 'one-time' # 執行一次，被收回後不會自動重啟
+                }
+            },
+            
             UserData=user_data_script,
             InstanceInitiatedShutdownBehavior='terminate',
             IamInstanceProfile={'Name': 'ec2_train_profile'},
