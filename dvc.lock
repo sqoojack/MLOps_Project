@@ -15,8 +15,8 @@ stages:
       isexec: true
     - path: params.yaml
       hash: md5
-      md5: 3af2b60bfdba474caa744b5d70a8b7c2
-      size: 944
+      md5: 631d65fe885c832ce5941457bb98b95a
+      size: 1022
       isexec: true
     - path: src/features.py
       hash: md5
@@ -30,8 +30,8 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: 7905b787073ce222aa3cedefbf35db5b
-      size: 27280877
+      md5: b35b354c30a6c1d9dac68cf6e6641f48
+      size: 27280999
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f

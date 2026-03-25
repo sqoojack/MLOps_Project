@@ -1,4 +1,4 @@
-# src/train_orchestrator.py
+# src/train_by_AWS.py
 import os
 import yaml
 import sagemaker
@@ -42,6 +42,47 @@ def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
 
     print(f"正在上傳: {filename}...")
     return sagemaker_session.upload_data(path=local_path, bucket=s3_bucket, key_prefix=s3_prefix)
+
+def wait_for_training_start(log_group, log_stream, region):
+    """
+    輪詢 CloudWatch 日誌，直到偵測到訓練正式開始的訊號
+    """
+    logs = boto3.client('logs', region_name=region)
+    print(f"🔍 正在啟動遠端監控，等待 Docker 環境建置與映像檔拉取...")
+    
+    start_time = time.time()
+    pattern = "Epoch 1/" # src/train.py 開始訓練的標誌字串
+    
+    while True:
+        try:
+            # 嘗試取得日誌事件
+            response = logs.get_log_events(
+                logGroupName=log_group,
+                logStreamName=log_stream,
+                startFromHead=True
+            )
+            events = response.get('events', [])
+            for event in events:
+                if pattern in event['message']:
+                    print(f"\n🚀 [偵測到訓練訊號]: 訓練已正式開始！")
+                    return True
+            
+            elapsed = int(time.time() - start_time)
+            print(f"\r⏳ 已等待 {elapsed} 秒... 正在進行環境初始化 (Docker Pulling)", end="")
+            
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                pass
+            else:
+                print(f"\n❌ 讀取日誌時發生異常: {e}")
+                return False
+        
+        # 1分鐘超時保護
+        if time.time() - start_time > 120:
+            print("\n等待訓練開始超時，請檢查 EC2 System Log。")
+            return False
+            
+        time.sleep(10)
 
 def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
     """
@@ -91,7 +132,8 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
             KeyName=key_name,
             BlockDeviceMappings=[
                 {
-                    'DeviceName': '/dev/xvda', 
+                    # 原本的Amazon Linux 的系統碟路徑是 '/dev/xvda'換成Ubuntu ->要改成 /dev/sda1
+                    'DeviceName': '/dev/sda1',
                     'Ebs': {
                         'VolumeSize': 100,      # 給Docker那些的包裝加大到 30GB
                         'VolumeType': 'gp3',
@@ -126,7 +168,8 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
         # 1. 等待開機完成
         print(f"[2/3] 等待實例 {instance_id} 進入運行狀態...")
         ec2.get_waiter('instance_running').wait(InstanceIds=[instance_id])
-        print(f"機器已啟動。訓練進行中，請稍候（這可能需要幾分鐘）...")
+        
+        wait_for_training_start(log_group, instance_id, region)
 
         # 2. 等待訓練完成 (機器關機即觸發 Terminate)
         # 每 30 秒檢查一次，最多等 1 小時
