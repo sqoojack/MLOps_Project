@@ -40,7 +40,7 @@ def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
     except ClientError:
         pass
 
-    print(f"偵測到變動，正在上傳: {filename}...")
+    print(f"正在上傳: {filename}...")
     return sagemaker_session.upload_data(path=local_path, bucket=s3_bucket, key_prefix=s3_prefix)
 
 def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
@@ -76,22 +76,23 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
     # 3. 獲取 Instance ID 作為 Log Stream 名稱 (增加辨識度)
     INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 
-    # 4. 登入 ECR 並執行訓練容器 (核心修改點)
+    # 4. 登入 ECR 並執行訓練容器
     aws ecr get-login-password --region {region} | docker login --username AWS --password-stdin {ecr_image_uri.split('/')[0]}
     
-    docker run --name training_container \\
-        --log-driver=awslogs \\
-        --log-opt awslogs-group=/aws/sagemaker/TrainingJobs \\
-        --log-opt awslogs-region={region} \\
-        --log-opt awslogs-stream=$INSTANCE_ID \\
-        -v /tmp/input/train:/opt/ml/input/data/train \\
-        -v /tmp/input/test:/opt/ml/input/data/test \\
-        -v /tmp/input/item_map:/opt/ml/input/data/item_map \\
-        -v /tmp/model:/opt/ml/model \\
-        -e SM_CHANNEL_TRAIN=/opt/ml/input/data/train \\
-        -e SM_CHANNEL_TEST=/opt/ml/input/data/test \\
-        -e SM_CHANNEL_ITEM_MAP=/opt/ml/input/data/item_map \\
-        -e SM_MODEL_DIR=/opt/ml/model \\
+    docker run --name training_container \
+        --log-driver=awslogs \
+        --log-opt awslogs-group=/aws/ec2/MLOps-TrainingJobs \
+        --log-opt awslogs-create-group=true \
+        --log-opt awslogs-region={region} \
+        --log-opt awslogs-stream=$INSTANCE_ID \
+        -v /tmp/input/train:/opt/ml/input/data/train \
+        -v /tmp/input/test:/opt/ml/input/data/test \
+        -v /tmp/input/item_map:/opt/ml/input/data/item_map \
+        -v /tmp/model:/opt/ml/model \
+        -e SM_CHANNEL_TRAIN=/opt/ml/input/data/train \
+        -e SM_CHANNEL_TEST=/opt/ml/input/data/test \
+        -e SM_CHANNEL_ITEM_MAP=/opt/ml/input/data/item_map \
+        -e SM_MODEL_DIR=/opt/ml/model \
         {ecr_image_uri} python src/train.py
 
     # 5. 打包模型並上傳至 S3
@@ -128,9 +129,9 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
             }],
             
             InstanceMarketOptions={
-                'MarketType': 'spot',
+                'MarketType': 'spot',   # 減少成本
                 'SpotOptions': {
-                    'MaxPrice': '0.3', # (選填) 你願意支付的最高時薪，不填則預設為 On-Demand 價格
+                    'MaxPrice': '0.4', # 你願意支付的最高時薪，不填則預設為 On-Demand 價格
                     'SpotInstanceType': 'one-time' # 執行一次，被收回後不會自動重啟
                 }
             },
