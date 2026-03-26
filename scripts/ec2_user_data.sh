@@ -9,7 +9,8 @@ aws s3 cp {test_s3} /tmp/input/test/
 aws s3 cp {item_map_s3} /tmp/input/item_map/
 aws s3 cp {params_s3} /tmp/params.yaml
 
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
 
 aws ecr get-login-password --region {region} | docker login --username AWS --password-stdin {ecr_registry}
 

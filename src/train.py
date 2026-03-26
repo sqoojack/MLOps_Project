@@ -104,7 +104,8 @@ def train():
         mlflow.log_param("loss_function", "CrossEntropy")
 
         best_ndcg = -float('inf')
-
+        print("Train start", flush=True)
+        
         for epoch in range(params['train']['epochs']):
             model.train()
             total_loss = 0
@@ -165,12 +166,6 @@ def train():
                         json.dump({"num_items": num_items, "params": params['model']}, f)
                     
                     tqdm.write("New Best NDCG! Model Saved locally.")
-
-                    # 2. 上傳到 S3
-                    if S3_BUCKET and S3_PATH:
-                        upload_to_s3(model_save_path, S3_BUCKET, S3_PATH)
-                    else:
-                        tqdm.write("S3 configs missing in .env, skipping upload.")
 
     print(f"Training complete. Best NDCG: {best_ndcg:.4f}")
 

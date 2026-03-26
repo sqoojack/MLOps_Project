@@ -44,18 +44,12 @@ def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
     return sagemaker_session.upload_data(path=local_path, bucket=s3_bucket, key_prefix=s3_prefix)
 
 def wait_for_training_start(log_group, log_stream, region):
-    """
-    輪詢 CloudWatch 日誌，直到偵測到訓練正式開始的訊號
-    """
     logs = boto3.client('logs', region_name=region)
-    print(f"等待 Docker 環境建置與映像檔拉取...")
-    
+    pattern = "Train start" # 改成你自訂的字串
     start_time = time.time()
-    pattern = "Epoch 1" # src/train.py 開始訓練的標誌字串
     
     while True:
         try:
-            # 嘗試取得日誌事件
             response = logs.get_log_events(
                 logGroupName=log_group,
                 logStreamName=log_stream,
@@ -63,26 +57,22 @@ def wait_for_training_start(log_group, log_stream, region):
             )
             events = response.get('events', [])
             for event in events:
+                # 建議用 in 來判斷，避免 tqdm 控制字元的干擾
                 if pattern in event['message']:
-                    print(f"\n🚀 [偵測到訓練訊號]: 訓練已正式開始！")
+                    print(f"\n 偵測到訓練log: 訓練已正式開始！")
                     return True
             
             elapsed = int(time.time() - start_time)
-            print(f"\r⏳ 已等待 {elapsed} 秒... 正在進行環境初始化 (Docker Pulling)", end="")
+            print(f"\r⏳ 已等待 {elapsed} 秒... 環境初始化中", end="")
             
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                pass
-            else:
-                print(f"\n❌ 讀取日誌時發生異常: {e}")
-                return False
+        except ClientError:
+            pass
         
-        # 8分鐘超時保護
-        if time.time() - start_time > 500:
-            print("\n等待訓練開始超時，請檢查 EC2 System Log。")
+        # 縮短檢查間隔到 5 秒
+        time.sleep(5) 
+        
+        if time.time() - start_time > 600: 
             return False
-            
-        time.sleep(10)
 
 def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     """
@@ -108,7 +98,7 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     script_path = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'ec2_user_data.sh')
     with open(script_path, 'r') as f:
         user_data_template = f.read()
-
+        
     user_data_script = user_data_template.format(
         train_s3=train_s3,
         test_s3=test_s3,
@@ -172,14 +162,23 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
         log_group = "/aws/ec2/MLOps-TrainingJobs"
         wait_for_training_start(log_group, instance_id, region)
 
-        # 2. 等待訓練完成 (機器關機即觸發 Terminate)
-        # 每 30 秒檢查一次，最多等 1 小時
-        waiter = ec2.get_waiter('instance_terminated')
-        waiter.wait(
-            InstanceIds=[instance_id],
-            WaiterConfig={'Delay': 30, 'MaxAttempts': 120}
-        )
-        print(f"實例已終止，代表訓練任務完成。")
+        print(f"⏳ 正在監控 S3 模型檔案是否產生...")
+        s3 = boto3.client('s3', region_name=region)
+        s3_waiter = s3.get_waiter('object_exists')
+        
+        model_s3_key = "recsys/model_output/model.tar.gz"
+        
+        try:
+            # 每 20 秒檢查一次 S3，最多等待 45 分鐘 (135 * 20s)
+            s3_waiter.wait(
+                Bucket=bucket,
+                Key=model_s3_key,
+                WaiterConfig={'Delay': 20, 'MaxAttempts': 135}
+            )
+            print(f"🚀 偵測到模型檔案已上傳至 S3，訓練任務順利結束")
+        except Exception as e:
+            print(f"❌ 等待 S3 模型檔案超時或失敗: {e}")
+            raise e
 
         # 3. 下載模型成果
         print(f"[3/3] 正在從 S3 下載訓練成果...")

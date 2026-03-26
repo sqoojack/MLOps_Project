@@ -52,6 +52,14 @@ data "aws_subnets" "default" {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1a"]
+  }
+}
+
+output "current_subnet_id" {
+  value = data.subnet.selected_az.id
 }
 
 resource "aws_security_group" "alb_sg" {
