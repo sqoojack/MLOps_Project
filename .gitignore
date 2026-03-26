@@ -65,3 +65,4 @@ override.tf.json
 *.pem
 *.key
 *.cer
+*.tar.gztmp_model/model.tar.gz
