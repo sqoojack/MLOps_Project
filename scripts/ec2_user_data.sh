@@ -7,6 +7,7 @@ chmod -R 777 /tmp/model
 aws s3 cp {train_s3} /tmp/input/train/
 aws s3 cp {test_s3} /tmp/input/test/
 aws s3 cp {item_map_s3} /tmp/input/item_map/
+aws s3 cp {params_s3} /tmp/params.yaml
 
 INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -21,6 +22,7 @@ docker run --gpus all --name training_container \
     -v /tmp/input/train:/opt/ml/input/data/train \
     -v /tmp/input/test:/opt/ml/input/data/test \
     -v /tmp/input/item_map:/opt/ml/input/data/item_map \
+    -v /tmp/params.yaml:/app/params.yaml \
     -v /tmp/model:/opt/ml/model \
     -e SM_CHANNEL_TRAIN=/opt/ml/input/data/train \
     -e SM_CHANNEL_TEST=/opt/ml/input/data/test \
@@ -41,4 +43,4 @@ if [ -f "model.pth" ]; then
 else
     echo "Error: model.pth not found in /tmp/model. Training container failed to produce output."
 fi
-# shutdown -h now
+shutdown -h now

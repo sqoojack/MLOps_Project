@@ -48,10 +48,10 @@ def wait_for_training_start(log_group, log_stream, region):
     輪詢 CloudWatch 日誌，直到偵測到訓練正式開始的訊號
     """
     logs = boto3.client('logs', region_name=region)
-    print(f"🔍 正在啟動遠端監控，等待 Docker 環境建置與映像檔拉取...")
+    print(f"等待 Docker 環境建置與映像檔拉取...")
     
     start_time = time.time()
-    pattern = "Epoch 1/" # src/train.py 開始訓練的標誌字串
+    pattern = "Epoch 1" # src/train.py 開始訓練的標誌字串
     
     while True:
         try:
@@ -77,14 +77,14 @@ def wait_for_training_start(log_group, log_stream, region):
                 print(f"\n❌ 讀取日誌時發生異常: {e}")
                 return False
         
-        # 1分鐘超時保護
-        if time.time() - start_time > 120:
+        # 8分鐘超時保護
+        if time.time() - start_time > 500:
             print("\n等待訓練開始超時，請檢查 EC2 System Log。")
             return False
             
         time.sleep(10)
 
-def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
+def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     """
     同步執行的 EC2 訓練模式：下載資料 -> 訓練 -> 上傳模型 -> 關機
     """
@@ -113,6 +113,7 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
         train_s3=train_s3,
         test_s3=test_s3,
         item_map_s3=item_map_s3,
+        params_s3=params_s3,
         region=region,
         ecr_registry=ecr_image_uri.split('/')[0],
         ecr_image_uri=ecr_image_uri,
@@ -168,7 +169,7 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3):
         # 1. 等待開機完成
         print(f"[2/3] 等待實例 {instance_id} 進入運行狀態...")
         ec2.get_waiter('instance_running').wait(InstanceIds=[instance_id])
-        
+        log_group = "/aws/ec2/MLOps-TrainingJobs"
         wait_for_training_start(log_group, instance_id, region)
 
         # 2. 等待訓練完成 (機器關機即觸發 Terminate)
@@ -254,10 +255,11 @@ def main():
         params = yaml.safe_load(f)
 
     # 2. 同步資料至 S3 (兩種模式都需要資料在雲端)
-    print("📦 開始同步訓練資料至 S3...")
+    print("📦 開始同步設定檔及訓練資料至 S3...")
     train_s3 = upload_to_s3(params['data']['processed_train_path'], bucket, "recsys/data/train", sagemaker_session)
     test_s3 = upload_to_s3(params['data']['processed_test_path'], bucket, "recsys/data/test", sagemaker_session)
     item_map_s3 = upload_to_s3(params['data']['item_map_path'], bucket, "recsys/data/item_map", sagemaker_session)
+    params_s3 = upload_to_s3("params.yaml", bucket, "recsys/config", sagemaker_session)
 
     # 3. 根據 mode 執行對應流程
     mode = params['train'].get('mode', 'sagemaker')
@@ -268,7 +270,7 @@ def main():
         download_and_extract_model(model_data_uri, params)
         
     elif mode == "ec2":
-        run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3)
+        run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3)
         print("EC2 同步訓練與模型下載完成。")
         
     else:
