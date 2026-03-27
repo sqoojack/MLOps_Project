@@ -15,8 +15,8 @@ stages:
       isexec: true
     - path: params.yaml
       hash: md5
-      md5: 2a2f81beeb8a2be723d38253c427561c
-      size: 1022
+      md5: 1a43d01f6705d126cec32ea3b50e20d3
+      size: 1023
       isexec: true
     - path: src/features.py
       hash: md5
@@ -30,8 +30,8 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: c2751c8ffb73f702eeac9b7dd80e3f13
-      size: 27281057
+      md5: e26f6562545880ddf6c6a119d7a3ed7c
+      size: 27280934
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f
@@ -53,8 +53,8 @@ stages:
       size: 17285612
     - path: params.yaml
       hash: md5
-      md5: 2a2f81beeb8a2be723d38253c427561c
-      size: 1022
+      md5: 1a43d01f6705d126cec32ea3b50e20d3
+      size: 1023
       isexec: true
     - path: src/model.py
       hash: md5
@@ -79,7 +79,7 @@ stages:
       size: 2365325
     - path: artifacts/model.pth
       hash: md5
-      md5: 2adf7bcb12078ba9d3857917b7918ca1
+      md5: 8c0820761f385fa0a63aafc4f0e81239
       size: 116065897
     - path: data/processed/test.csv
       hash: md5
@@ -87,8 +87,8 @@ stages:
       size: 4321389
     - path: params.yaml
       hash: md5
-      md5: 2a2f81beeb8a2be723d38253c427561c
-      size: 1022
+      md5: 1a43d01f6705d126cec32ea3b50e20d3
+      size: 1023
       isexec: true
     - path: src/evaluate.py
       hash: md5
@@ -103,6 +103,6 @@ stages:
     outs:
     - path: metrics/metrics.json
       hash: md5
-      md5: abbd0968dcba49437f3e3cc4beeaa475
+      md5: 8aec34261f0071c65c9a70ade29eea7d
       size: 307
       isexec: true
