@@ -44,13 +44,13 @@ def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
     return sagemaker_session.upload_data(path=local_path, bucket=s3_bucket, key_prefix=s3_prefix)
 
 def monitor_training_and_s3(instance_id, bucket, s3_key, region):
-    """合併監控 S3 檔案與 CloudWatch 日誌，並自動尋找最新的 Log Stream"""
+    """優先監控指定的 Instance ID 串流，確保不被舊日誌干擾"""
     s3 = boto3.client('s3', region_name=region)
     logs = boto3.client('logs', region_name=region)
     log_group = "/aws/ec2/MLOps-TrainingJobs"
     
-    print(f"🎯 目標 S3 路徑: s3://{bucket}/{s3_key}")
-    print(f"📊 監控 CloudWatch 日誌群組: {log_group}")
+    print(f"目標 S3 路徑: s3://{bucket}/{s3_key}")
+    print(f"預計log stream: {instance_id}")
     
     start_time = time.time()
     train_start_detected = False
@@ -59,56 +59,61 @@ def monitor_training_and_s3(instance_id, bucket, s3_key, region):
     while True:
         elapsed = int(time.time() - start_time)
         
-        # --- 動態尋找最新的 Log Stream ---
         if not train_start_detected:
+            # 策略：先嘗試直接抓取以 Instance ID 命名的串流
+            target_streams = [instance_id]
+            
+            # 如果沒抓到，再擴大範圍尋找最近更新的 3 個 (備援方案)
             try:
-                # 取得該 Log Group 中最近有活動的 3 個串流
-                streams_response = logs.describe_log_streams(
+                streams_resp = logs.describe_log_streams(
                     logGroupName=log_group,
                     orderBy='LastEventTime',
                     descending=True,
                     limit=3
                 )
-                
-                for stream in streams_response.get('logStreams', []):
-                    stream_name = stream['logStreamName']
-                    
-                    # 紀錄並印出系統找到的新串流 (避免重複列印)
+                recent_names = [s['logStreamName'] for s in streams_resp.get('logStreams', [])]
+                for name in recent_names:
+                    if name not in target_streams:
+                        target_streams.append(name)
+            except:
+                pass
+
+            for stream_name in target_streams:
+                try:
                     if stream_name not in printed_streams:
-                        print(f"\n🔍 發現 Log Stream: {stream_name}")
+                        # print(f"\n🔍 正在檢查 Log Stream: {stream_name}")
                         printed_streams.add(stream_name)
 
-                    # 掃描這個串流的日誌內容
                     events_response = logs.get_log_events(
                         logGroupName=log_group,
                         logStreamName=stream_name,
-                        startFromHead=True
+                        startFromHead=False # 從最後面開始看，避免抓到超舊日誌
                     )
                     
                     for event in events_response.get('events', []):
                         if "Train start" in event['message']:
-                            print(f"\n📝 偵測到訓練日誌 (來自 {stream_name}): 訓練已正式開始！")
-                            train_start_detected = True
-                            break
-                            
-                    if train_start_detected:
-                        break # 跳出內層迴圈
-                        
-            except ClientError as e:
-                # 忽略 Log Group 尚未建立的錯誤
-                if e.response['Error']['Code'] not in ['ResourceNotFoundException']:
-                    print(f"\n⚠️ 日誌 API 讀取錯誤: {e}")
-        
-        # --- 檢查 S3 檔案是否存在 ---
+                            # 檢查日誌時間是否是在我們啟動之後 (避免抓到幾天前的)
+                            # event['timestamp'] 是毫秒
+                            if event['timestamp'] > (start_time * 1000):
+                                print(f"\n偵測到WatchCloud log (來自 {stream_name}): 訓練已正式開始！")
+                                train_start_detected = True
+                                break
+                    if train_start_detected: break
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                        continue # 串流可能還沒建立，正常
+                    print(f"\n⚠️ 讀取 {stream_name} 失敗: {e}")
+
+        # 2. 檢查 S3 檔案是否存在
         try:
             s3.head_object(Bucket=bucket, Key=s3_key)
-            print(f"\n✅ 偵測到模型檔案已上傳至 S3！訓練任務順利結束。")
+            print(f"\n偵測到模型檔案已上傳至 S3，訓練任務順利結束。")
             return True
         except ClientError as e:
             if e.response['Error']['Code'] != '404':
                 print(f"\n⚠️ S3 檢查發生例外錯誤: {e}")
                 
-        print(f"\r⏳ 已等待 {elapsed} 秒... 系統執行中 (監控中)", end="", flush=True)
+        print(f"\r⏳ 已等待 {elapsed} 秒... 監控日誌中 ({instance_id})", end="", flush=True)
         time.sleep(15)
         
         if elapsed > 5400: 

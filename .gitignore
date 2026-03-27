@@ -62,3 +62,8 @@ override.tf.json
 *.cer
 *.tar.gz
 tmp_model/
+
+airflow/*.cfg
+airflow/*.db
+airflow/logs/
+airflow/webserver_config.py
