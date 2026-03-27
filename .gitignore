@@ -27,11 +27,6 @@ mlflow/
 .dvc/tmp
 # dvc.lock 建議保留在 Git 中，以便團隊同步版本
 
-# --- Metrics & Results ---
-metrics/
-benchmark_results.json
-metrics.json
-
 # --- Databases ---
 *.db
 airflow/airflow.db
@@ -65,4 +60,5 @@ override.tf.json
 *.pem
 *.key
 *.cer
-*.tar.gztmp_model/model.tar.gz
+*.tar.gz
+tmp_model/

@@ -34,6 +34,6 @@ stages:
         - artifacts/model.pth             
         - artifacts/item_map.json        
         metrics:
-        - metrics.json:
+        - metrics/metrics.json:
             persist: true
             cache: false

@@ -43,36 +43,76 @@ def upload_to_s3(local_path, s3_bucket, s3_prefix, sagemaker_session):
     print(f"正在上傳: {filename}...")
     return sagemaker_session.upload_data(path=local_path, bucket=s3_bucket, key_prefix=s3_prefix)
 
-def wait_for_training_start(log_group, log_stream, region):
+def monitor_training_and_s3(instance_id, bucket, s3_key, region):
+    """合併監控 S3 檔案與 CloudWatch 日誌，並自動尋找最新的 Log Stream"""
+    s3 = boto3.client('s3', region_name=region)
     logs = boto3.client('logs', region_name=region)
-    pattern = "Train start" # 改成你自訂的字串
+    log_group = "/aws/ec2/MLOps-TrainingJobs"
+    
+    print(f"🎯 目標 S3 路徑: s3://{bucket}/{s3_key}")
+    print(f"📊 監控 CloudWatch 日誌群組: {log_group}")
+    
     start_time = time.time()
+    train_start_detected = False
+    printed_streams = set()
     
     while True:
+        elapsed = int(time.time() - start_time)
+        
+        # --- 動態尋找最新的 Log Stream ---
+        if not train_start_detected:
+            try:
+                # 取得該 Log Group 中最近有活動的 3 個串流
+                streams_response = logs.describe_log_streams(
+                    logGroupName=log_group,
+                    orderBy='LastEventTime',
+                    descending=True,
+                    limit=3
+                )
+                
+                for stream in streams_response.get('logStreams', []):
+                    stream_name = stream['logStreamName']
+                    
+                    # 紀錄並印出系統找到的新串流 (避免重複列印)
+                    if stream_name not in printed_streams:
+                        print(f"\n🔍 發現 Log Stream: {stream_name}")
+                        printed_streams.add(stream_name)
+
+                    # 掃描這個串流的日誌內容
+                    events_response = logs.get_log_events(
+                        logGroupName=log_group,
+                        logStreamName=stream_name,
+                        startFromHead=True
+                    )
+                    
+                    for event in events_response.get('events', []):
+                        if "Train start" in event['message']:
+                            print(f"\n📝 偵測到訓練日誌 (來自 {stream_name}): 訓練已正式開始！")
+                            train_start_detected = True
+                            break
+                            
+                    if train_start_detected:
+                        break # 跳出內層迴圈
+                        
+            except ClientError as e:
+                # 忽略 Log Group 尚未建立的錯誤
+                if e.response['Error']['Code'] not in ['ResourceNotFoundException']:
+                    print(f"\n⚠️ 日誌 API 讀取錯誤: {e}")
+        
+        # --- 檢查 S3 檔案是否存在 ---
         try:
-            response = logs.get_log_events(
-                logGroupName=log_group,
-                logStreamName=log_stream,
-                startFromHead=True
-            )
-            events = response.get('events', [])
-            for event in events:
-                # 建議用 in 來判斷，避免 tqdm 控制字元的干擾
-                if pattern in event['message']:
-                    print(f"\n 偵測到訓練log: 訓練已正式開始！")
-                    return True
-            
-            elapsed = int(time.time() - start_time)
-            print(f"\r⏳ 已等待 {elapsed} 秒... 環境初始化中", end="")
-            
-        except ClientError:
-            pass
+            s3.head_object(Bucket=bucket, Key=s3_key)
+            print(f"\n✅ 偵測到模型檔案已上傳至 S3！訓練任務順利結束。")
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] != '404':
+                print(f"\n⚠️ S3 檢查發生例外錯誤: {e}")
+                
+        print(f"\r⏳ 已等待 {elapsed} 秒... 系統執行中 (監控中)", end="", flush=True)
+        time.sleep(15)
         
-        # 縮短檢查間隔到 5 秒
-        time.sleep(5) 
-        
-        if time.time() - start_time > 600: 
-            return False
+        if elapsed > 5400: 
+            raise TimeoutError("等待模型檔案產生超時")
 
 def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     """
@@ -94,6 +134,14 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     mlflow_user = os.getenv('MLFLOW_TRACKING_USERNAME', '')
     mlflow_pass = os.getenv('MLFLOW_TRACKING_PASSWORD', '')
     s3_model_path = os.getenv('S3_MODEL_PATH', 'recsys/model_output')
+    model_s3_key = f"{s3_model_path}/model.tar.gz"
+    
+    s3_client = boto3.client('s3', region_name=region)
+    try:
+        s3_client.delete_object(Bucket=bucket, Key=f"{s3_model_path}/model.tar.gz")
+        print("🧹 已清除 S3 上的舊模型，確保等待新產生的結果。")
+    except Exception:
+        pass
 
     script_path = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'ec2_user_data.sh')
     with open(script_path, 'r') as f:
@@ -159,30 +207,11 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
         # 1. 等待開機完成
         print(f"[2/3] 等待實例 {instance_id} 進入運行狀態...")
         ec2.get_waiter('instance_running').wait(InstanceIds=[instance_id])
-        log_group = "/aws/ec2/MLOps-TrainingJobs"
-        wait_for_training_start(log_group, instance_id, region)
-
-        print(f"⏳ 正在監控 S3 模型檔案是否產生...")
-        s3 = boto3.client('s3', region_name=region)
-        s3_waiter = s3.get_waiter('object_exists')
         
-        model_s3_key = "recsys/model_output/model.tar.gz"
+        monitor_training_and_s3(instance_id, bucket, model_s3_key, region)
         
-        try:
-            # 每 20 秒檢查一次 S3，最多等待 45 分鐘 (135 * 20s)
-            s3_waiter.wait(
-                Bucket=bucket,
-                Key=model_s3_key,
-                WaiterConfig={'Delay': 20, 'MaxAttempts': 135}
-            )
-            print(f"🚀 偵測到模型檔案已上傳至 S3，訓練任務順利結束")
-        except Exception as e:
-            print(f"❌ 等待 S3 模型檔案超時或失敗: {e}")
-            raise e
-
-        # 3. 下載模型成果
         print(f"[3/3] 正在從 S3 下載訓練成果...")
-        model_s3_uri = f"s3://{bucket}/recsys/model_output/model.tar.gz"
+        model_s3_uri = f"s3://{bucket}/{model_s3_key}"
         download_and_extract_model(model_s3_uri, params)
         
         return instance_id
@@ -229,15 +258,22 @@ def download_and_extract_model(model_s3_uri, params):
     tar_path = os.path.join(tmp_dir, "model.tar.gz")
 
     print(f"正在從 S3 下載模型檔案: {model_s3_uri}...")
-    s3.download_file(bucket_name, key, tar_path) # 使用純 boto3 下載
+    s3.download_file(bucket_name, key, tar_path) 
     
     if os.path.exists(tar_path):
         with tarfile.open(tar_path, "r:gz") as tar:
             target_output_path = params['data']['model_path']
             os.makedirs(os.path.dirname(target_output_path), exist_ok=True)
-            tar.extract("model.pth", path=tmp_dir)
-            shutil.move(os.path.join(tmp_dir, "model.pth"), target_output_path)
-        print(f"✅ 模型已成功同步至本地路徑: {target_output_path}")
+            
+            # 使用 extractall 避免 filename prefix 的 KeyError
+            tar.extractall(path=tmp_dir)
+            
+            extracted_model = os.path.join(tmp_dir, "model.pth")
+            if os.path.exists(extracted_model):
+                shutil.move(extracted_model, target_output_path)
+                print(f"✅ 模型已成功同步至本地路徑: {target_output_path}")
+            else:
+                print("❌ 壓縮檔內未找到 model.pth")
     shutil.rmtree(tmp_dir)
 
 def main():

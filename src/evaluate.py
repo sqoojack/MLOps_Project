@@ -158,8 +158,13 @@ def evaluate():
             "eval_model_mrr_10": final_metrics["model_mrr_10"],
             "eval_baseline_ndcg_10": final_metrics["baseline_ndcg_10"]
         })
+        
+    os.makedirs("metrics", exist_ok=True)
+    metrics_path = "metrics/metrics.json"
+    with open(metrics_path, "w") as f:
+        json.dump(final_metrics, f, indent=4)
 
-    print("評估指標已寫入 MLflow")
+    print(f"評估指標已寫入 MLflow 以及 {metrics_path}")
 
 if __name__ == "__main__":
     evaluate()
