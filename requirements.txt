@@ -1,19 +1,28 @@
+# 核心資料處理與模型
 pandas
+numpy
 scikit-learn
+torch
+
+# MLOps 與 版本控制 (整合 S3 支援)
+dvc[s3]==3.48.0
+s3fs==2024.3.1
+aiobotocore==2.12.1
 mlflow
-dvc
+
+# AWS 相關 (與 s3fs 相容的版本)
+boto3==1.34.51
+botocore==1.34.51
+sagemaker
+
+# API 服務
 fastapi
 uvicorn
 joblib
 prometheus-fastapi-instrumentator
-torch
-numpy
-pandas
-dvc
+python-dotenv
+
+# 其他資料集工具
 redis
 datasets==2.19.0
 pyarrow
-sagemaker
-boto3
-python-dotenv
-redis
