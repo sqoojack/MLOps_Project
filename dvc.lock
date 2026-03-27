@@ -68,8 +68,8 @@ stages:
       isexec: true
     - path: src/train_by_AWS.py
       hash: md5
-      md5: 25e78cc361fe3b6420784711ae1aea57
-      size: 12505
+      md5: 267292f01602fde69e69652f95d70eb2
+      size: 12826
   evaluate:
     cmd: python src/evaluate.py
     deps:
@@ -79,7 +79,7 @@ stages:
       size: 2365325
     - path: artifacts/model.pth
       hash: md5
-      md5: 0d205b23a02e99d7e690a3c675895c6b
+      md5: 2adf7bcb12078ba9d3857917b7918ca1
       size: 116065897
     - path: data/processed/test.csv
       hash: md5
@@ -87,13 +87,13 @@ stages:
       size: 4321389
     - path: params.yaml
       hash: md5
-      md5: 5627e027483e45c02ced788c10b21303
-      size: 732
+      md5: 2a2f81beeb8a2be723d38253c427561c
+      size: 1022
       isexec: true
     - path: src/evaluate.py
       hash: md5
-      md5: e3ccf9051dcb5f7027de99c7d3327125
-      size: 5562
+      md5: 8573805b4e16f2977e99aefdda4df23d
+      size: 5763
       isexec: true
     - path: src/model.py
       hash: md5
@@ -101,8 +101,8 @@ stages:
       size: 7328
       isexec: true
     outs:
-    - path: metrics.json
+    - path: metrics/metrics.json
       hash: md5
-      md5: 02588014460d733df09259c42444e917
-      size: 1272
+      md5: abbd0968dcba49437f3e3cc4beeaa475
+      size: 307
       isexec: true
