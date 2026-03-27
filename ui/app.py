@@ -12,7 +12,7 @@ URL_BROWSE = f"{API_BASE}/browse"
 URL_INTERACT = f"{API_BASE}/interact"
 URL_RESET = f"{API_BASE}/history"
 
-st.set_page_config(page_title="AI Store Premium", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="Simulated Amazon Marketplace", layout="wide", page_icon="🛍️")
 
 # -----------------------------------------------------------------------------
 # Advanced Custom CSS
@@ -125,7 +125,7 @@ if "browse_cache" not in st.session_state:
 # -----------------------------------------------------------------------------
 def add_to_cart(item):
     st.session_state.cart.append(item)
-    st.toast(f"✅ Added '{item['name'][:15]}...' to cart")
+    st.toast(f"Added '{item['name'][:15]}...' to cart")
 
 def remove_from_cart(index):
     if 0 <= index < len(st.session_state.cart):
@@ -235,7 +235,7 @@ with st.sidebar:
                     if st.button("🗑️", key=f"remove_{i}", help="Remove this item"):
                         remove_from_cart(i)
     else:
-        st.info("🛒 Your cart is currently empty.")
+        st.info("Your cart is currently empty.")
 
     st.divider()
     
@@ -254,8 +254,8 @@ with st.sidebar:
 # -----------------------------------------------------------------------------
 st.markdown("""
 <div class="hero-banner">
-    <h1>🛍️ AI Store Premium</h1>
-    <p>Powered by Advanced MLOps & Transformer Recommendation Engine</p>
+    <h1>🛍️ Simulated Amazon Marketplace</h1>
+    <p>Powered by MLOps & AWS & Transformer system</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -310,32 +310,30 @@ with tab_browse:
     
     with c_prev:
         if st.session_state.page > 1:
-            if st.button("⬅️ Previous", use_container_width=True):
+            if st.button("Previous", use_container_width=True):
                 st.session_state.page -= 1
                 st.rerun()
         else:
-            st.button("⬅️ Previous", disabled=True, use_container_width=True)
+            st.button("Previous", disabled=True, use_container_width=True)
 
     with c_display:
         st.markdown(f"<h4 style='text-align: center; color: #666;'>Page {st.session_state.page} of {MAX_PAGES}</h4>", unsafe_allow_html=True)
 
     with c_next:
         if st.session_state.page < MAX_PAGES:
-            if st.button("Next ➡️", use_container_width=True):
+            if st.button("Next", use_container_width=True):
                 st.session_state.page += 1
                 st.rerun()
         else:
-            st.button("Next ➡️", disabled=True, use_container_width=True)
+            st.button("Next", disabled=True, use_container_width=True)
 
 # === TAB 2: RECOMMENDATIONS ===
 with tab_recs:
     col_title, col_btn, col_status = st.columns([2, 1, 1])
     with col_title:
-        st.subheader(f"👋 Recommendations for User {st.session_state.user_id}")
+        st.subheader(f"Recommendations for User {st.session_state.user_id}")
     with col_btn:
         refresh = st.button("🔄 Refresh", type="primary", use_container_width=True)
-    with col_status:
-        st.caption(f"Last updated: {datetime.datetime.now().strftime('%H:%M:%S')}")
 
     st.divider()
 
