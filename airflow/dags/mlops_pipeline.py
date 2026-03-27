@@ -2,6 +2,7 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
+import os
 
 # PROJECT_PATH = "/home/jack/MLOps_Project"   # 因為是自動化, 所以需要專案路徑
 PROJECT_PATH = "/opt/airflow/project"

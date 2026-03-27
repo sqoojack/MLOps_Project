@@ -118,7 +118,7 @@ def _get_predictions(recent_interactions: list[int], top_k=10):
         return result.get('recommendations', [])
     except Exception as e:
         print(f"SageMaker Inference Error: {e}")
-        return []
+    
     
     input_tensor = torch.tensor([seq], dtype=torch.long).to(device)
     with torch.no_grad():
