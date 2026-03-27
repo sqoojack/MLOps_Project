@@ -54,13 +54,10 @@ data "aws_subnets" "default" {
   }
   filter {
     name   = "availability-zone"
-    values = ["us-east-1a"]
+    values = ["us-east-1d"]
   }
 }
 
-output "current_subnet_id" {
-  value = data.subnet.selected_az.id
-}
 
 resource "aws_security_group" "alb_sg" {
   name        = "recsys-alb-sg"
