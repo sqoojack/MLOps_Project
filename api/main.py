@@ -6,7 +6,7 @@ import yaml
 import sys
 import os
 import redis
-import random  # [New] 用於隨機挑選瀏覽商品
+import random
 import boto3
 
 # 將 src 加入路徑
@@ -19,66 +19,8 @@ except ImportError:
 app = FastAPI()
 
 # ---------------------------------------------------------
-# 1. 初始化與載入設定
+# 1. 資料結構定義 (Pydantic Models) - 必須放在前面
 # ---------------------------------------------------------
-
-with open("params.yaml") as f:
-    params = yaml.safe_load(f)
-
-item_map_path = params.get('data', {}).get('item_map_path', 'artifacts/item_map.json')
-try:
-    with open(item_map_path, "r") as f:
-        item_map = json.load(f)
-    num_items = len(item_map)
-except FileNotFoundError:
-    print(f"Warning: {item_map_path} not found. Model may fail to initialize.")
-    item_map = {}
-    num_items = 100 # Fallback
-    
-
-    
-# 初始化 Boto3 SageMaker Runtime 客戶端
-sm_runtime = boto3.client('sagemaker-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
-ENDPOINT_NAME = os.getenv('SAGEMAKER_ENDPOINT_NAME', 'recsys-endpoint')
-
-# 載入 Metadata
-metadata_path = params.get('data', {}).get('metadata_path', 'artifacts/items_metadata.json')
-try:
-    with open(metadata_path, "r") as f:
-        metadata = json.load(f)
-except FileNotFoundError:
-    print(f"Warning: {metadata_path} not found.")
-    metadata = {}
-
-# 載入模型
-device = torch.device("cpu")
-model = RecTransformer(num_items)
-
-model_path = params.get('data', {}).get('model_path', 'artifacts/model.pth')
-if os.path.exists(model_path):
-    model.load_state_dict(torch.load(model_path, map_location=device))
-else:
-    print(f"Warning: {model_path} not found. Using untrained model.")
-model.eval()
-
-# 連線 Redis
-try:
-    redis_client = redis.Redis(
-        host=params['redis']['host'], 
-        port=params['redis']['port'], 
-        db=params['redis']['db'],
-        decode_responses=True
-    )
-    redis_client.ping()
-    print("✅ Redis connected successfully!")
-except Exception as e:
-    print(f"⚠️ Redis connection failed: {e}")
-    redis_client = None
-
-# ---------------------------------------------------------
-# 2. 定義資料結構
-# ---------------------------------------------------------
-
 class PredictionRequest(BaseModel):
     recent_interactions: list[int]
 
@@ -90,166 +32,165 @@ class InteractionRequest(BaseModel):
     item_idx: int
 
 # ---------------------------------------------------------
-# 3. 核心推論邏輯
+# 2. 初始化與載入邏輯
 # ---------------------------------------------------------
+with open("params.yaml") as f:
+    params = yaml.safe_load(f)
 
+item_map_path = params.get('data', {}).get('item_map_path', 'artifacts/item_map.json')
+metadata_path = params.get('data', {}).get('metadata_path', 'artifacts/items_metadata.json')
+model_path = params.get('data', {}).get('model_path', 'artifacts/model.pth')
+device = torch.device("cpu")
+
+def load_resources():
+    """封裝載入邏輯，供初始化與熱更新使用"""
+    global item_map, num_items, metadata, model
+    
+    # 載入 Item Map
+    try:
+        with open(item_map_path, "r") as f:
+            item_map = json.load(f)
+        num_items = len(item_map)
+    except FileNotFoundError:
+        item_map = {}
+        num_items = 100
+        print(f"Warning: {item_map_path} not found.")
+
+    # 載入 Metadata
+    try:
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+    except FileNotFoundError:
+        metadata = {}
+
+    # 初始化與載入模型權重
+    model = RecTransformer(num_items)
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        print(f"✅ Loaded model from {model_path}")
+    model.eval()
+
+# 執行初始載入
+load_resources()
+
+# 初始化 SageMaker 與 Redis
+sm_runtime = boto3.client('sagemaker-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+ENDPOINT_NAME = os.getenv('SAGEMAKER_ENDPOINT_NAME', 'recsys-endpoint')
+
+try:
+    redis_client = redis.Redis(
+        host=params['redis']['host'], 
+        port=params['redis']['port'], 
+        db=params['redis']['db'],
+        decode_responses=True
+    )
+    redis_client.ping()
+except Exception as e:
+    print(f"⚠️ Redis connection failed: {e}")
+    redis_client = None
+
+# ---------------------------------------------------------
+# 3. 核心推論邏輯 (修改點 1: 隨機採樣)
+# ---------------------------------------------------------
 def _get_predictions(recent_interactions: list[int], top_k=10):
     seq = [i for i in recent_interactions if 0 < i <= num_items]
-    
-    if not seq:
-        return []
+    if not seq: return []
     
     max_len = params['model']['max_len']
     if len(seq) > max_len:
         seq = seq[-max_len:]
     else:
         seq = [0] * (max_len - len(seq)) + seq
-        
-    # 透過網路將序列發送至 SageMaker PyTorch Endpoint
+
+    # 優先嘗試 SageMaker
     payload = json.dumps({"inputs": seq, "top_k": top_k})
-    
     try:
         response = sm_runtime.invoke_endpoint(
-            EndpointName=ENDPOINT_NAME,
-            ContentType='application/json',
-            Body=payload
+            EndpointName=ENDPOINT_NAME, ContentType='application/json', Body=payload
         )
         result = json.loads(response['Body'].read().decode())
         return result.get('recommendations', [])
-    except Exception as e:
-        print(f"SageMaker Inference Error: {e}")
+    except Exception:
+        pass # Fallback to local model
     
-    
+    # --- 本地模型隨機採樣邏輯 ---
     input_tensor = torch.tensor([seq], dtype=torch.long).to(device)
     with torch.no_grad():
         output = model(input_tensor)
         logits = output[:, -1, :] 
-        _, top_indices = torch.topk(logits, top_k, dim=-1)
+        
+        # 增加隨機性：透過 Temperature 調整機率分佈
+        temperature = 1.2 
+        probs = torch.softmax(logits / temperature, dim=-1)
+        
+        # 使用 multinomial 進行採樣（不再只是取最強的那幾個）
+        top_indices = torch.multinomial(probs, num_samples=top_k)
         
     return top_indices[0].tolist()
 
 # ---------------------------------------------------------
-# 4. API Endpoints
+# 4. API Endpoints (已整合與去重)
 # ---------------------------------------------------------
-
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "RecSys API is running"}
 
-@app.get("/browse")
-def browse_items(limit: int = 20):
-    """
-    [New] 隨機回傳一些商品供使用者瀏覽
-    """
-    all_keys = list(metadata.keys())
-    # 隨機挑選 limit 個商品
-    if not all_keys:
-        return []
-        
-    sample_keys = random.sample(all_keys, min(len(all_keys), limit))
-    
-    browse_list = []
-    for k in sample_keys:
-        item = metadata[k].copy()
-        item['item_idx'] = int(k) # 重要：將 ID 放入回傳資料中
-        browse_list.append(item)
-        
-    return browse_list
+@app.post("/reload")
+def reload_model():
+    """修改點 2: 熱更新端點"""
+    try:
+        load_resources()
+        return {"status": "success", "message": "Resources reloaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reload failed: {str(e)}")
 
 @app.post("/interact")
 def interact(req: InteractionRequest):
-    """
-    [New] 使用者對某商品感興趣 (Like)，更新 Redis
-    """
+    """修改點 3: 更新 Redis 並打印日誌"""
     if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis service unavailable")
+        raise HTTPException(status_code=503, detail="Redis unavailable")
 
     redis_key = f"user:{req.user_id}"
     history_str = redis_client.get(redis_key)
+    history = json.loads(history_str) if history_str else []
     
-    if history_str:
-        try:
-            history = json.loads(history_str)
-        except json.JSONDecodeError:
-            history = []
-    else:
-        history = []
-    
-    # 避免重複連續點擊相同商品 (Optional)
     if not history or history[-1] != req.item_idx:
         history.append(req.item_idx)
     
-    # 保持歷史長度限制 (例如只存最後 50 筆)
-    if len(history) > 50:
-        history = history[-50:]
-        
+    if len(history) > 50: history = history[-50:]
     redis_client.set(redis_key, json.dumps(history))
     
-    return {"status": "success", "message": f"Item {req.item_idx} added to history", "history_len": len(history)}
+    # 確認日誌輸出
+    print(f"LOG: User {req.user_id} added item {req.item_idx}. Current history length: {len(history)}")
+    
+    return {"status": "success", "message": f"Item {req.item_idx} added", "history_len": len(history)}
+
+@app.get("/browse")
+def browse_items(limit: int = 20):
+    all_keys = list(metadata.keys())
+    if not all_keys: return []
+    sample_keys = random.sample(all_keys, min(len(all_keys), limit))
+    return [{"item_idx": int(k), **metadata[k]} for k in sample_keys]
 
 @app.post("/recommend")
 def recommend(req: RecRequest):
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis service unavailable")
-
-    redis_key = f"user:{req.user_id}"
-    history_str = redis_client.get(redis_key)
+    if redis_client is None: raise HTTPException(status_code=503, detail="Redis unavailable")
+    history_str = redis_client.get(f"user:{req.user_id}")
     
-    # 如果 Redis 沒資料，回傳空的推薦，或是給一些熱門預設值
-    if not history_str:
-        return {
-            "user_id": req.user_id,
-            "recommendations": [], 
-            "source": "cold_start"
-        }
+    if not history_str: return {"user_id": req.user_id, "recommendations": [], "source": "cold_start"}
     
-    try:
-        history_items = json.loads(history_str)
-    except json.JSONDecodeError:
-        return {"recommendations": [], "error": "Invalid history format"}
-
-    if not history_items:
-        return {"recommendations": [], "source": "empty_history"}
-
-    # 執行推論
+    history_items = json.loads(history_str)
     recs = _get_predictions(history_items)
     
-    # 組合詳細資訊
     detailed_recs = []
-    for item_idx in recs:
-        # 抓取 Metadata
-        item_info = metadata.get(str(item_idx), {
-            "name": f"Unknown Item ({item_idx})",
-            "image": None,
-            "asin": "N/A"
-        }).copy()
-        
-        # [重要] 注入 item_idx 讓前端可以使用
-        item_info['item_idx'] = item_idx
-        detailed_recs.append(item_info)
+    for idx in recs:
+        info = metadata.get(str(idx), {"name": f"Unknown ({idx})", "asin": "N/A"}).copy()
+        info['item_idx'] = idx
+        detailed_recs.append(info)
     
-    return {
-        "user_id": req.user_id,
-        "recommendations": detailed_recs,
-        "source": "model_personalization_gqa"
-    }
-
-@app.post("/predict")
-def predict(req: PredictionRequest):
-    recs = _get_predictions(req.recent_interactions)
-    return {"recommendations": recs, "source": "input_list"}
-
-class ResetRequest(BaseModel):
-    user_id: str
+    return {"user_id": req.user_id, "recommendations": detailed_recs, "source": "model_sampling_gqa"}
 
 @app.delete("/history")
 def reset_history(user_id: str):
-    """
-    [New] 清除特定使用者的瀏覽歷史
-    """
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis unavailable")
-    
-    redis_key = f"user:{user_id}"
-    redis_client.delete(redis_key)
-    return {"status": "success", "message": f"History for user {user_id} has been reset."}
+    if redis_client: redis_client.delete(f"user:{user_id}")
+    return {"status": "success", "message": f"History for {user_id} reset."}

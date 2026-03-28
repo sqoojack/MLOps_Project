@@ -7,22 +7,18 @@ stages:
       hash: md5
       md5: f018e35b6c0d58f9737f0556af0cfb1e
       size: 99156148
-      isexec: true
     - path: feature/events_processed.csv
       hash: md5
-      md5: 727505a6cf9c0a44a2cf631b74e43b15
-      size: 32
-      isexec: true
+      md5: a737b0f11cbdfccc1d1b7124f6254946
+      size: 143
     - path: params.yaml
       hash: md5
       md5: 1a43d01f6705d126cec32ea3b50e20d3
       size: 1023
-      isexec: true
     - path: src/features.py
       hash: md5
       md5: 3274fd9db5e75fdb675ad6b0a4c2b845
       size: 5809
-      isexec: true
     outs:
     - path: artifacts/item_map.json
       hash: md5
@@ -30,8 +26,8 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: e26f6562545880ddf6c6a119d7a3ed7c
-      size: 27280934
+      md5: 74423f054033f749d3188845bd57ab8b
+      size: 27281003
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f
