@@ -4,6 +4,7 @@ This project implements a production-grade MLOps pipeline for an e-commerce reco
 
 ## 🏗️ System Architecture & Tech Stack
 
+### Architecture Diagram
 ![System Architecture](images/Architecture_v1.png)
 
 * **Model Architecture**: Transformer-based recommender featuring **Grouped Query Attention (GQA)** and **KV Cache** for optimized inference latency.
