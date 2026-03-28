@@ -245,6 +245,19 @@ with st.sidebar:
         st.session_state.user_id = new_user
         st.session_state.browse_cache = {} 
         st.rerun()
+        
+    if st.button("🗑️ Reset User History", type="secondary"):
+        try:
+            # 呼叫後端的 DELETE /history 接口
+            response = requests.delete(URL_RESET, params={"user_id": st.session_state.user_id})
+            if response.status_code == 200:
+                st.toast("User history has been cleared!")
+                st.session_state.browse_cache = {} 
+                st.rerun()
+            else:
+                st.error("Failed to reset history.")
+        except Exception as e:
+            st.error(f"Connection error: {e}")
 
 # -----------------------------------------------------------------------------
 # Main Application Content

@@ -207,35 +207,6 @@ resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_logs" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
-# resource "aws_sagemaker_model" "recsys_model" {
-#   name               = "recsys-transformer-model"
-#   execution_role_arn = aws_iam_role.sagemaker_execution_role.arn
-
-#   primary_container {
-#     # 使用 AWS 官方的 PyTorch 映像檔 (對應版本需與你訓練環境相符)
-#     image          = "763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.0.0-cpu-py310-ubuntu20.04-ec2"
-#     model_data_url = "s3://YOUR-S3-BUCKET/model.tar.gz"
-#   }
-# }
-
-# resource "aws_sagemaker_endpoint_configuration" "recsys_endpoint_config" {
-#   name = "recsys-endpoint-config"
-
-#   production_variants {
-#     variant_name           = "AllTraffic"
-#     model_name             = aws_sagemaker_model.recsys_model.name
-#     initial_instance_count = 1
-#     instance_type          = "ml.m5.large" # 由於是 Transformer，選擇具備一定運算能力的實例
-#   }
-# }
-
-# resource "aws_sagemaker_endpoint" "recsys_endpoint" {
-#   name                 = "recsys-endpoint"
-#   endpoint_config_name = aws_sagemaker_endpoint_configuration.recsys_endpoint_config.name
-# }
-
-
-
 output "current_subnet_id" {
   value = data.aws_subnets.default.ids[0]
 }
