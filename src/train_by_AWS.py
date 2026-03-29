@@ -123,7 +123,7 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     """
     同步執行的 EC2 訓練模式：下載資料 -> 訓練 -> 上傳模型 -> 關機
     """
-    ec2 = boto3.client('ec2')
+    
     
     # 從 params 與 env 讀取設定
     image_id = params['train'].get('ec2_ami_id')
@@ -141,6 +141,7 @@ def run_ec2_mode(params, bucket, train_s3, test_s3, item_map_s3, params_s3):
     s3_model_path = os.getenv('S3_MODEL_PATH', 'recsys/model_output')
     model_s3_key = f"{s3_model_path}/model.tar.gz"
     
+    ec2 = boto3.client('ec2', region_name=region)
     s3_client = boto3.client('s3', region_name=region)
     try:
         s3_client.delete_object(Bucket=bucket, Key=f"{s3_model_path}/model.tar.gz")
