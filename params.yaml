@@ -24,7 +24,7 @@ train:
     ec2_instance_type: "g4dn.xlarge"    # 中階GPU
     # ec2_instance_type: "g6.xlarge"  # 更快的GPU
     batch_size: 128
-    epochs: 25
+    epochs: 20
     lr: 0.0015
     eval_interval: 1
 

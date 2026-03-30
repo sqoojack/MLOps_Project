@@ -9,11 +9,11 @@ stages:
       size: 99156148
     - path: feature/events_processed.csv
       hash: md5
-      md5: 749634348d4d932a6f3f8d13892031af
-      size: 218
+      md5: 727505a6cf9c0a44a2cf631b74e43b15
+      size: 32
     - path: params.yaml
       hash: md5
-      md5: 1a43d01f6705d126cec32ea3b50e20d3
+      md5: e3340896e8d61c5076172e3e212d9028
       size: 1023
     - path: src/features.py
       hash: md5
@@ -26,16 +26,16 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: 222276ea02ea8618e2746e39cde17d51
-      size: 27280831
+      md5: e1b6b2d14c303313304ecc24ee5a769f
+      size: 27280872
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f
       size: 4321389
     - path: data/processed/train.csv
       hash: md5
-      md5: 01269628571b3eb46053a829d8d87cf6
-      size: 17285649
+      md5: b0a1bb0d1ae1be3e70e5276a25d1c080
+      size: 17285612
   train:
     cmd: python src/train_by_AWS.py
     deps:
@@ -49,23 +49,21 @@ stages:
       size: 17285612
     - path: params.yaml
       hash: md5
-      md5: 1a43d01f6705d126cec32ea3b50e20d3
+      md5: e3340896e8d61c5076172e3e212d9028
       size: 1023
       isexec: true
     - path: src/model.py
       hash: md5
       md5: e86e00c5c3e72f8b7a7c025a38a3c34e
       size: 7328
-      isexec: true
     - path: src/train.py
       hash: md5
       md5: 3cbf4d1b91a5273eaad9f198b1c8bab2
       size: 7299
-      isexec: true
     - path: src/train_by_AWS.py
       hash: md5
-      md5: 267292f01602fde69e69652f95d70eb2
-      size: 12826
+      md5: a8f25790d3ee138d1cde120bf080740b
+      size: 12851
   evaluate:
     cmd: python src/evaluate.py
     deps:
@@ -75,7 +73,7 @@ stages:
       size: 2365325
     - path: artifacts/model.pth
       hash: md5
-      md5: 8c0820761f385fa0a63aafc4f0e81239
+      md5: 0da5bfef7ba871a2bd5e61caba421c62
       size: 116065897
     - path: data/processed/test.csv
       hash: md5
@@ -83,22 +81,19 @@ stages:
       size: 4321389
     - path: params.yaml
       hash: md5
-      md5: 1a43d01f6705d126cec32ea3b50e20d3
+      md5: e3340896e8d61c5076172e3e212d9028
       size: 1023
-      isexec: true
     - path: src/evaluate.py
       hash: md5
       md5: 8573805b4e16f2977e99aefdda4df23d
       size: 5763
-      isexec: true
     - path: src/model.py
       hash: md5
       md5: e86e00c5c3e72f8b7a7c025a38a3c34e
       size: 7328
-      isexec: true
     outs:
     - path: metrics/metrics.json
       hash: md5
-      md5: 8aec34261f0071c65c9a70ade29eea7d
-      size: 307
+      md5: a44012eeb952bf149fd7a535c3e0048e
+      size: 296
       isexec: true

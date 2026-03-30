@@ -2,7 +2,7 @@
 
 This project implements a production-grade MLOps pipeline for an e-commerce recommendation system. It utilizes a Transformer-based model with Grouped Query Attention (GQA) and KV Cache to provide high-performance, personalized recommendations. The system integrates data versioning, automated retraining, experiment tracking, and cloud-native deployment.
 
-## 🏗️ System Architecture & Tech Stack
+## System Architecture & Tech Stack
 
 ### Architecture Diagram
 ![System Architecture](images/Architecture_v2.png)
@@ -17,7 +17,7 @@ This project implements a production-grade MLOps pipeline for an e-commerce reco
 
 ---
 
-## 🚀 End-to-End Workflow
+## End-to-End Workflow
 
 The system operates through a continuous feedback loop:
 
@@ -32,7 +32,7 @@ The system operates through a continuous feedback loop:
 
 ---
 
-## 🛠️ Infrastructure & Deployment
+## Infrastructure & Deployment
 
 ### Cloud (AWS & Terraform)
 The project uses Terraform to maintain Infrastructure as Code (IaC):
@@ -53,7 +53,7 @@ docker-compose up -d
 
 ---
 
-## 📊 Performance Benchmarks
+## Performance Benchmarks
 
 The implementation of **Grouped Query Attention (GQA)** significantly improves inference efficiency compared to standard (Vanilla) Transformers:
 
@@ -67,19 +67,38 @@ The implementation of **Grouped Query Attention (GQA)** significantly improves i
 
 ## 🧪 Development & Testing
 
-### Installation
+### 1. Local Environment Setup (Docker Compose)
+To spin up the entire microservice ecosystem—including the **FastAPI** backend, **Streamlit** UI, **Redis** cache, and **Airflow** orchestrator—run the following command. The `--build` flag ensures that any local code changes in your Dockerfiles or requirements are incorporated:
 ```bash
-pip install -r requirements.txt
+docker-compose up --build -d
 ```
 
-### Running Tests
-Automated tests ensure model output shapes and masking logic remain intact:
-```bash
+### 2. Reproducing the ML Pipeline (DVC)
+This project uses **DVC** to manage the end-to-end machine learning lifecycle. Instead of manually running individual Python scripts, use `dvc repro` to trigger the pipeline defined in `dvc.yaml`. This ensures that data preprocessing, model training, and evaluation are executed in the correct order only when dependencies change:
+```
+# Execute the full pipeline (preprocess -> train -> evaluate)
+dvc repro
+```
+
+### 3. Running Unit Tests
+Before promoting a model or pushing code changes, run the automated test suite to verify that the Transformer architecture, output dimensions, and masking logic remain intact:
+```
+# Run unit tests located in the tests/ directory
 pytest tests/
 ```
 
-### Manual Training Trigger
-To manually trigger a cloud training session via EC2:
-```bash
+### 4. Data & Artifact Versioning
+Since large datasets and model weights (`.pth` files) are not stored in Git, use DVC to synchronize these artifacts with the S3 remote storage:
+```
+# Pull data and model artifacts from S3
+dvc pull
+
+# Push newly generated models and metrics to S3
+dvc push
+```
+
+### 5. Manual Training Trigger (Optional)
+While the pipeline is typically managed by DVC or Airflow, you can still manually trigger a cloud-based training session on an AWS EC2 GPU instance for heavy-duty workloads:
+```
 python src/train_by_AWS.py
 ```

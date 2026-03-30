@@ -31,7 +31,7 @@ with DAG(
     tags=['mlops', 'recommendation'],
 ) as dag:
 
-    # 步驟 1: 拉取最新資料 (模擬從 Feature Store 或 DB 同步)
+    # 步驟 1: 拉取最新資料
     pull_data = BashOperator(
         task_id='pull_data_and_code',
         bash_command=(

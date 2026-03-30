@@ -56,10 +56,10 @@ services:
         environment:
             - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
             - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
-            - _AIRFLOW_DB_MIGRATE=true # 使用新的環境變數名稱
+            - _AIRFLOW_DB_MIGRATE=true 
             
             - AIRFLOW__WEBSERVER__SECRET_KEY=mlops_secret_key_12345
-            - MLFLOW_TRACKING_URI=sqlite:////opt/airflow/project/mlflow.db
+            - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
             - AIRFLOW__CORE__LOAD_EXAMPLES=False
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
