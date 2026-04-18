@@ -1,4 +1,3 @@
-# src/benchmark.py
 import torch
 import yaml
 import time
@@ -20,9 +19,6 @@ def run_benchmark():
     print("=== Efficiency Benchmark ===")
     print(f"Device: {device}, Batch: {batch_size}, SeqLen: {seq_len}")
 
-    # ==========================================
-    # A. Vanilla Model (No Cache, No GQA)
-    # ==========================================
     vanilla_model = VanillaRecTransformer(num_items).to(device)
     vanilla_model.eval()
     
@@ -39,9 +35,6 @@ def run_benchmark():
     vanilla_time = (time.time() - start_time) * 1000 
     print(f"Vanilla Total Time: {vanilla_time:.2f} ms")
 
-    # ==========================================
-    # B. GQA Model (With Cache)
-    # ==========================================
     gqa_model = RecTransformer(num_items).to(device)
     gqa_model.eval()
     
@@ -60,10 +53,7 @@ def run_benchmark():
     gqa_time = (time.time() - start_time) * 1000 
     print(f"GQA + Cache Total Time: {gqa_time:.2f} ms")
 
-    # ==========================================
-    # C. ONNX / TensorRT Model
-    # ==========================================
-    print("\n[Running ONNX/TensorRT Model]...")
+    print("\n[Running ONNX/TensorRT Model with KV Cache]...")
     onnx_path = "artifacts/model.onnx"
     trt_time = float('inf')
     
@@ -79,35 +69,34 @@ def run_benchmark():
             'CUDAExecutionProvider',
             'CPUExecutionProvider'
         ]
-        
         try:
             ort_session = ort.InferenceSession(onnx_path, providers=providers)
-            input_name = ort_session.get_inputs()[0].name
+            num_layers = params['model']['num_layers']
+            num_kv_heads = params['model'].get('num_kv_heads', params['model']['num_heads'])
+            head_dim = params['model']['embed_dim'] // params['model']['num_heads']
             
-            current_seq_np = np.zeros((batch_size, seq_len), dtype=np.int64)
-            current_seq_np[0, -1] = np.random.randint(1, num_items)
+            ort_inputs = {'input': np.random.randint(1, num_items, (batch_size, 1), dtype=np.int64)}
+            for i in range(num_layers):
+                ort_inputs[f'past_k_{i}'] = np.zeros((batch_size, num_kv_heads, 0, head_dim), dtype=np.float32)
+                ort_inputs[f'past_v_{i}'] = np.zeros((batch_size, num_kv_heads, 0, head_dim), dtype=np.float32)
             
-            # Warmup run to initialize TRT engine
-            _ = ort_session.run(None, {input_name: current_seq_np})
+            _ = ort_session.run(None, ort_inputs)
             
             start_time = time.time()
             for _ in range(seq_len):
-                outputs = ort_session.run(None, {input_name: current_seq_np})
-                next_token = np.argmax(outputs[0][:, -1, :])
+                outputs = ort_session.run(None, ort_inputs)
+                next_token = np.argmax(outputs[0][:, -1, :], axis=-1).reshape(batch_size, 1)
                 
-                current_seq_np = np.roll(current_seq_np, -1, axis=1)
-                current_seq_np[0, -1] = next_token
-                
+                ort_inputs['input'] = next_token
+                for i in range(num_layers):
+                    ort_inputs[f'past_k_{i}'] = outputs[1 + i]         
+                    ort_inputs[f'past_v_{i}'] = outputs[1 + num_layers + i]
+                    
             trt_time = (time.time() - start_time) * 1000
             print(f"ONNX/TRT Total Time: {trt_time:.2f} ms")
         except Exception as e:
-            print(f"ONNX/TRT Execution Error: {e}")
-    else:
-        print(f"Missing file: {onnx_path}")
+            print(f"ONNX/TRT Error: {e}")
 
-    # ==========================================
-    # Metrics & Export
-    # ==========================================
     speedup_gqa = vanilla_time / gqa_time if gqa_time > 0 else 0
     speedup_trt = vanilla_time / trt_time if trt_time != float('inf') and trt_time > 0 else 0
     

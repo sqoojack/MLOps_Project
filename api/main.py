@@ -11,13 +11,11 @@ import onnxruntime as ort
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.model import RecTransformer
 
 app = FastAPI()
 
-# --- Pydantic Models ---
 class RecRequest(BaseModel):
     user_id: str
 
@@ -25,7 +23,6 @@ class InteractionRequest(BaseModel):
     user_id: str
     item_idx: int
 
-# --- Resource Initialization ---
 with open("params.yaml") as f:
     params = yaml.safe_load(f)
 
@@ -38,7 +35,6 @@ device = torch.device("cpu")
 def load_resources():
     global item_map, num_items, metadata, pt_model, ort_session
     
-    # Load Item Map & Metadata
     with open(item_map_path, "r") as f:
         item_map = json.load(f)
     num_items = len(item_map)
@@ -46,7 +42,6 @@ def load_resources():
     with open(metadata_path, "r") as f:
         metadata = json.load(f)
 
-    # 1. Load ONNX Runtime v1.24.4 with TensorRT 10.x Support
     ort_session = None
     if os.path.exists(onnx_path):
         providers = [
@@ -66,7 +61,6 @@ def load_resources():
         except Exception as e:
             print(f"ONNX/TRT Loading Error: {e}")
 
-    # 2. PyTorch Fallback Model
     pt_model = RecTransformer(num_items)
     if os.path.exists(model_path):
         pt_model.load_state_dict(torch.load(model_path, map_location=device))
@@ -75,7 +69,6 @@ def load_resources():
 
 load_resources()
 
-# --- External Services ---
 sm_runtime = boto3.client('sagemaker-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
 ENDPOINT_NAME = os.getenv('SAGEMAKER_ENDPOINT_NAME', 'recsys-endpoint')
 
@@ -90,7 +83,6 @@ except Exception as e:
     print(f"Redis link failed: {e}")
     redis_client = None
 
-# --- Core Inference Logic ---
 def _get_predictions(recent_interactions: list[int], top_k=10):
     seq = [i for i in recent_interactions if 0 < i <= num_items]
     if not seq: return []
@@ -101,28 +93,31 @@ def _get_predictions(recent_interactions: list[int], top_k=10):
     else:
         seq = [0] * (max_len - len(seq)) + seq
 
-    # Step 1: Attempt Optimized Inference (ONNX/TRT)
     if ort_session:
-        input_name = ort_session.get_inputs()[0].name
-        input_np = np.array([seq], dtype=np.int64)
-        outputs = ort_session.run(None, {input_name: input_np})
+        num_layers = params['model']['num_layers']
+        num_kv_heads = params['model'].get('num_kv_heads', params['model']['num_heads'])
+        head_dim = params['model']['embed_dim'] // params['model']['num_heads']
+        
+        ort_inputs = {'input': np.array([seq], dtype=np.int64)}
+        for i in range(num_layers):
+            ort_inputs[f'past_k_{i}'] = np.zeros((1, num_kv_heads, 0, head_dim), dtype=np.float32)
+            ort_inputs[f'past_v_{i}'] = np.zeros((1, num_kv_heads, 0, head_dim), dtype=np.float32)
+            
+        outputs = ort_session.run(None, ort_inputs)
         logits = torch.from_numpy(outputs[0])[:, -1, :]
     else:
-        # Step 2: Fallback to PyTorch
         input_tensor = torch.tensor([seq], dtype=torch.long).to(device)
         with torch.no_grad():
             output = pt_model(input_tensor)
             logits = output[:, -1, :]
     
-    # Stochastic Sampling for Variety
     probs = torch.softmax(logits / 1.2, dim=-1)
     top_indices = torch.multinomial(probs, num_samples=top_k)
     return top_indices[0].tolist()
 
-# --- API Endpoints ---
 @app.get("/")
 def health():
-    return {"status": "ok", "engine": "TensorRT 10.16.1" if ort_session else "PyTorch"}
+    return {"status": "ok", "engine": "TensorRT" if ort_session else "PyTorch"}
 
 @app.post("/recommend")
 def recommend(req: RecRequest):
