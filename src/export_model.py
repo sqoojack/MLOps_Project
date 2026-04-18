@@ -7,32 +7,41 @@ import onnx
 import tensorrt as trt
 from model import RecTransformer
 
+def get_dynamic_wrapper(n_layers):
+    """
+    Generate a dynamic ONNX wrapper class with explicit forward signature
+    to bypass PyTorch dynamic_axes PyTree flattening issues.
+    """
+    args_k = ", ".join([f"past_k_{i}" for i in range(n_layers)])
+    args_v = ", ".join([f"past_v_{i}" for i in range(n_layers)])
+    
+    code = f"""
+import torch
+import torch.nn as nn
+
 class DynamicONNXWrapper(nn.Module):
-    def __init__(self, model, n_layers):
+    def __init__(self, model):
         super().__init__()
         self.model = model
-        self.n_layers = n_layers
         
-    def forward(self, *args):
-        # args[0]: input_ids, args[1:]: flattened k0, k1..., v0, v1...
-        input_ids = args[0]
-        past_k = args[1:1+self.n_layers]
-        past_v = args[1+self.n_layers:]
+    def forward(self, input_ids, {args_k}, {args_v}):
+        past_k = [{args_k}]
+        past_v = [{args_v}]
+        past_kv = list(zip(past_k, past_v))
         
-        past_kv = []
-        for k, v in zip(past_k, past_v):
-            past_kv.append((k, v))
-            
         logits, new_kv = self.model(input_ids, use_cache=True, past_key_values=past_kv)
         
-        # Flatten outputs
         flat_present = []
         for k, v in new_kv:
             flat_present.append(k)
         for k, v in new_kv:
             flat_present.append(v)
             
-        return (logits, *flat_present)
+        return tuple([logits] + flat_present)
+"""
+    local_vars = {}
+    exec(code, globals(), local_vars)
+    return local_vars['DynamicONNXWrapper']
 
 def export_pipeline():
     with open("params.yaml", "r") as f:
@@ -53,31 +62,41 @@ def export_pipeline():
     base_model.eval()
 
     num_layers = params['model']['num_layers']
-    model = DynamicONNXWrapper(base_model, num_layers)
+    WrapperClass = get_dynamic_wrapper(num_layers)
+    model = WrapperClass(base_model)
     model.eval()
 
-    print("Export ONNX with flattened KV cache nodes.")
+    print("Export ONNX with explicit signature for KV cache nodes.")
     seq_len = params['model']['max_len']
     num_kv_heads = params['model'].get('num_kv_heads', params['model']['num_heads'])
     head_dim = params['model']['embed_dim'] // params['model']['num_heads']
     
-    dummy_input = torch.randint(1, num_items, (1, 1), dtype=torch.long)
-    dummy_past_k = [torch.randn(1, num_kv_heads, 1, head_dim) for _ in range(num_layers)]
-    dummy_past_v = [torch.randn(1, num_kv_heads, 1, head_dim) for _ in range(num_layers)]
+    # 建立 dummy_inputs 時，長度設定大於 1，避免 ONNX exporter 把維度寫死為 1
+    dummy_input = torch.randint(1, num_items, (1, 3), dtype=torch.long)
+    dummy_past_k = [torch.randn(1, num_kv_heads, 2, head_dim) for _ in range(num_layers)]
+    dummy_past_v = [torch.randn(1, num_kv_heads, 2, head_dim) for _ in range(num_layers)]
     all_inputs = (dummy_input, *dummy_past_k, *dummy_past_v)
 
     input_names = ["input"] + [f"past_k_{i}" for i in range(num_layers)] + [f"past_v_{i}" for i in range(num_layers)]
     output_names = ["output"] + [f"present_k_{i}" for i in range(num_layers)] + [f"present_v_{i}" for i in range(num_layers)]
     
-    dynamic_axes = {name: {0: 'batch_size', 2: 'seq_len'} for name in input_names + output_names}
-    dynamic_axes["input"] = {0: 'batch_size', 1: 'seq_len'}
+    # 解除 input 與 past_k 的 seq_len 綁定，避免 TensorRT shape constraint 錯誤
+    dynamic_axes = {
+        "input": {0: "batch_size", 1: "current_seq_len"},
+        "output": {0: "batch_size", 1: "current_seq_len"}
+    }
+    for i in range(num_layers):
+        dynamic_axes[f"past_k_{i}"] = {0: "batch_size", 2: "past_seq_len"}
+        dynamic_axes[f"past_v_{i}"] = {0: "batch_size", 2: "past_seq_len"}
+        dynamic_axes[f"present_k_{i}"] = {0: "batch_size", 2: "total_seq_len"}
+        dynamic_axes[f"present_v_{i}"] = {0: "batch_size", 2: "total_seq_len"}
 
     torch.onnx.export(
         model,
         all_inputs,
         onnx_path,
         export_params=True,
-        opset_version=17,
+        opset_version=18,
         do_constant_folding=True,
         input_names=input_names,
         output_names=output_names,
@@ -100,11 +119,23 @@ def export_pipeline():
     config = builder.create_builder_config()
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 2 * 1024 * 1024 * 1024)
     
+    # 設定 TensorRT optimization profiles
     profile = builder.create_optimization_profile()
     profile.set_shape("input", (1, 1), (1, seq_len), (128, seq_len))
     for i in range(num_layers):
-        profile.set_shape(f"past_k_{i}", (1, num_kv_heads, 0, head_dim), (1, num_kv_heads, seq_len, head_dim), (128, num_kv_heads, seq_len, head_dim))
-        profile.set_shape(f"past_v_{i}", (1, num_kv_heads, 0, head_dim), (1, num_kv_heads, seq_len, head_dim), (128, num_kv_heads, seq_len, head_dim))
+        # 注意：過去的 KV Cache 長度最小值必須為 0 (初始推論狀態)
+        profile.set_shape(
+            f"past_k_{i}", 
+            (1, num_kv_heads, 0, head_dim), 
+            (1, num_kv_heads, max(1, seq_len // 2), head_dim), 
+            (128, num_kv_heads, seq_len, head_dim)
+        )
+        profile.set_shape(
+            f"past_v_{i}", 
+            (1, num_kv_heads, 0, head_dim), 
+            (1, num_kv_heads, max(1, seq_len // 2), head_dim), 
+            (128, num_kv_heads, seq_len, head_dim)
+        )
     config.add_optimization_profile(profile)
     
     if builder.platform_has_fast_fp16:
