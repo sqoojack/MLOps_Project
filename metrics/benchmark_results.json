@@ -1,7 +1,7 @@
 {
-    "vanilla_latency_ms": 246.59132957458496,
-    "gqa_latency_ms": 13.683795928955078,
-    "trt_latency_ms": 27.18377113342285,
-    "speedup_gqa_ratio": 18.020681604348887,
-    "speedup_trt_ratio": 9.07127007376093
+    "vanilla_latency_ms": 166.8717861175537,
+    "gqa_latency_ms": 12.372493743896484,
+    "trt_latency_ms": 14.75071907043457,
+    "speedup_gqa_ratio": 13.487320306779203,
+    "speedup_trt_ratio": 11.312789927104042
 }

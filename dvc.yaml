@@ -47,3 +47,14 @@ stages:
         - metrics/metrics.json:
             persist: true
             cache: false
+
+    benchmark:
+        cmd: python src/benchmark.py
+        deps:
+        - src/benchmark.py
+        - src/model.py
+        - params.yaml
+        - artifacts/model.onnx
+        metrics:
+        - metrics/benchmark_results.json:
+            cache: false

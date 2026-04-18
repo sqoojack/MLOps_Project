@@ -129,3 +129,27 @@ stages:
       hash: md5
       md5: e05e0cbdd5eb5088de3aa703f1939b91
       size: 12021
+  benchmark:
+    cmd: python src/benchmark.py
+    deps:
+    - path: artifacts/model.onnx
+      hash: md5
+      md5: e05e0cbdd5eb5088de3aa703f1939b91
+      size: 12021
+    - path: params.yaml
+      hash: md5
+      md5: e3340896e8d61c5076172e3e212d9028
+      size: 1023
+    - path: src/benchmark.py
+      hash: md5
+      md5: e416fc8dea821c974b94a9032d02ffdd
+      size: 4918
+    - path: src/model.py
+      hash: md5
+      md5: e86e00c5c3e72f8b7a7c025a38a3c34e
+      size: 7328
+    outs:
+    - path: metrics/benchmark_results.json
+      hash: md5
+      md5: 2e189558a373c9e2340289df6192c76a
+      size: 220
