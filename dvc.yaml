@@ -22,6 +22,17 @@ stages:
         - data/processed/train.csv
         - data/processed/test.csv
 
+    export:
+        cmd: python src/export_model.py
+        deps:
+        - src/export_model.py
+        - src/model.py
+        - artifacts/model.pth
+        - artifacts/item_map.json
+        outs:
+        - artifacts/model.onnx
+        - artifacts/model.engine
+
     evaluate:
         cmd: python src/evaluate.py
         deps:
@@ -30,7 +41,8 @@ stages:
         - data/processed/test.csv
         - params.yaml
         - artifacts/model.pth             
-        - artifacts/item_map.json        
+        - artifacts/item_map.json
+        - artifacts/model.onnx        
         metrics:
         - metrics/metrics.json:
             persist: true

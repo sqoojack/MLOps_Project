@@ -26,3 +26,9 @@ python-dotenv
 redis
 datasets==2.19.0
 pyarrow
+
+
+onnx==1.21.0
+onnxscript
+onnxruntime-gpu==1.24.4
+tensorrt==10.16.1.11
