@@ -142,8 +142,8 @@ stages:
       size: 1023
     - path: src/benchmark.py
       hash: md5
-      md5: 76112b725b19da5701a779292bac578f
-      size: 4785
+      md5: c979ae07531e5c745fa4cf2e2d862e49
+      size: 6692
     - path: src/model.py
       hash: md5
       md5: e86e00c5c3e72f8b7a7c025a38a3c34e
@@ -151,5 +151,5 @@ stages:
     outs:
     - path: metrics/benchmark_results.json
       hash: md5
-      md5: f9cb8e66b945ee006c22d60be46d0eec
-      size: 222
+      md5: 3476449c4ebb52502ee1d19c8ab32802
+      size: 218

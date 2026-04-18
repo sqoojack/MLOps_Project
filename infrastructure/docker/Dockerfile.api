@@ -1,17 +1,22 @@
-FROM python:3.10-slim
+# Use Python 3.12 as base
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# 複製依賴文件並安裝
+# Install system dependencies for ONNX/TensorRT
+RUN apt-get update && apt-get install -y \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 複製程式碼與必要模型文件
+# Copy application code
 COPY api/ ./api/
 COPY src/ ./src/
 COPY params.yaml .
 COPY scripts/init_redis.py .
-# model.pth 與 item_map.json 會由 docker-compose 的 volumes 掛載
 
 EXPOSE 8000
 

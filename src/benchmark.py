@@ -58,29 +58,64 @@ def run_benchmark():
     trt_time = float('inf')
     
     if os.path.exists(onnx_path):
+        num_layers = params['model']['num_layers']
+        num_kv_heads = params['model'].get('num_kv_heads', params['model']['num_heads'])
+        head_dim = params['model']['embed_dim'] // params['model']['num_heads']
+
+        # Generate dynamic shape profiles to prevent TRT engine recompilation
+        min_shapes = ["input:1x1"]
+        opt_shapes = ["input:1x1"]
+        max_shapes = ["input:1x1"]
+        
+        for i in range(num_layers):
+            min_shapes.append(f"past_k_{i}:1x{num_kv_heads}x0x{head_dim}")
+            min_shapes.append(f"past_v_{i}:1x{num_kv_heads}x0x{head_dim}")
+            
+            opt_shapes.append(f"past_k_{i}:1x{num_kv_heads}x{seq_len//2}x{head_dim}")
+            opt_shapes.append(f"past_v_{i}:1x{num_kv_heads}x{seq_len//2}x{head_dim}")
+            
+            max_shapes.append(f"past_k_{i}:1x{num_kv_heads}x{seq_len}x{head_dim}")
+            max_shapes.append(f"past_v_{i}:1x{num_kv_heads}x{seq_len}x{head_dim}")
+
         providers = [
             ('TensorrtExecutionProvider', {
                 'device_id': 0,
                 'trt_max_workspace_size': 2147483648,
                 'trt_fp16_enable': True,
                 'trt_engine_cache_enable': True,
-                'trt_engine_cache_path': 'artifacts/trt_cache'
+                'trt_engine_cache_path': 'artifacts/trt_cache',
+                'trt_profile_min_shapes': ",".join(min_shapes),
+                'trt_profile_max_shapes': ",".join(max_shapes),
+                'trt_profile_opt_shapes': ",".join(opt_shapes)
             }),
             'CUDAExecutionProvider',
             'CPUExecutionProvider'
         ]
+        
         try:
             ort_session = ort.InferenceSession(onnx_path, providers=providers)
-            num_layers = params['model']['num_layers']
-            num_kv_heads = params['model'].get('num_kv_heads', params['model']['num_heads'])
-            head_dim = params['model']['embed_dim'] // params['model']['num_heads']
             
+            # --- Warm-up phase to build the engine before timing ---
+            print("Warming up TRT Engine...")
+            ort_inputs_warmup = {'input': np.random.randint(1, num_items, (batch_size, 1), dtype=np.int64)}
+            for i in range(num_layers):
+                ort_inputs_warmup[f'past_k_{i}'] = np.zeros((batch_size, num_kv_heads, 0, head_dim), dtype=np.float32)
+                ort_inputs_warmup[f'past_v_{i}'] = np.zeros((batch_size, num_kv_heads, 0, head_dim), dtype=np.float32)
+            
+            for _ in range(seq_len):
+                outputs = ort_session.run(None, ort_inputs_warmup)
+                next_token = np.argmax(outputs[0][:, -1, :], axis=-1).reshape(batch_size, 1)
+                
+                ort_inputs_warmup['input'] = next_token
+                for i in range(num_layers):
+                    ort_inputs_warmup[f'past_k_{i}'] = outputs[1 + i]         
+                    ort_inputs_warmup[f'past_v_{i}'] = outputs[1 + num_layers + i]
+
+            # --- Actual timed benchmark ---
             ort_inputs = {'input': np.random.randint(1, num_items, (batch_size, 1), dtype=np.int64)}
             for i in range(num_layers):
                 ort_inputs[f'past_k_{i}'] = np.zeros((batch_size, num_kv_heads, 0, head_dim), dtype=np.float32)
                 ort_inputs[f'past_v_{i}'] = np.zeros((batch_size, num_kv_heads, 0, head_dim), dtype=np.float32)
-            
-            _ = ort_session.run(None, ort_inputs)
             
             start_time = time.time()
             for _ in range(seq_len):
