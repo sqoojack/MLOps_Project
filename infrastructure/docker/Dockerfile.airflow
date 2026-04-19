@@ -1,6 +1,6 @@
 # Location: infrastructure/docker/Dockerfile.airflow
-# Sync with Python 3.12
-FROM apache/airflow:2.8.1-python3.12
+# Sync with Python 3.10
+FROM apache/airflow:2.8.1-python3.10
 
 USER root
 # Install git for DVC operations
@@ -10,6 +10,6 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 USER airflow
-# Install pipeline dependencies (This will now find v1.24.4)
+# Install pipeline dependencies
 COPY requirements.txt /requirements.txt
 RUN pip install --no-cache-dir -r /requirements.txt
