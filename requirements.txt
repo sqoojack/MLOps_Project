@@ -6,6 +6,7 @@ torch
 
 # MLOps and version control (S3 support integration)
 dvc[s3]==3.48.0
+pathspec<0.12.0
 s3fs==2024.3.1
 aiobotocore==2.12.1
 mlflow

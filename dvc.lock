@@ -9,8 +9,8 @@ stages:
       size: 99156148
     - path: feature/events_processed.csv
       hash: md5
-      md5: c5152050463260fc04c3513b0c8533f3
-      size: 140
+      md5: a90ba7d06af3cf67089cfce2a903d8c5
+      size: 174
     - path: params.yaml
       hash: md5
       md5: e3340896e8d61c5076172e3e212d9028
@@ -26,8 +26,8 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: c914a689f40715ac3e756d4c936617f5
-      size: 27280942
+      md5: bb369afbf25d1573e48b89bd0c6110a6
+      size: 27280970
     - path: data/processed/test.csv
       hash: md5
       md5: 88d441eaf265b9201cae0382c7402b3f

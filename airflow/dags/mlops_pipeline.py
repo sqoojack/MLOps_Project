@@ -51,7 +51,11 @@ with DAG(
     run_pipeline = BashOperator(
         task_id='run_dvc_pipeline',
         bash_command=f'cd {PROJECT_PATH} && dvc repro',
-        env=airflow_env, 
+        # env=airflow_env, 
+        env={
+        'HF_HOME': '/tmp/huggingface_cache',
+        'PATH': os.environ.get('PATH')
+        }
     )
 
     # 4: 推送新模型到 Registry 或 DVC Remote
