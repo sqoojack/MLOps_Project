@@ -6,7 +6,7 @@ data:
     model_path: "artifacts/model.pth"               # 新增此行
 
     test_size: 0.2
-    min_item_count: 20
+    min_item_count: 2
 
 model:
     type: "gqa"       

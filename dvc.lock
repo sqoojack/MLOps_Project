@@ -9,12 +9,12 @@ stages:
       size: 99156148
     - path: feature/events_processed.csv
       hash: md5
-      md5: a90ba7d06af3cf67089cfce2a903d8c5
-      size: 174
+      md5: 90dd3f050bbea6d872d8f5a1b109f3a1
+      size: 54
     - path: params.yaml
       hash: md5
-      md5: e3340896e8d61c5076172e3e212d9028
-      size: 1023
+      md5: adb7d6bc08029cabf4da6b113e9c9697
+      size: 1022
     - path: src/features.py
       hash: md5
       md5: 3274fd9db5e75fdb675ad6b0a4c2b845
@@ -26,16 +26,16 @@ stages:
       size: 2365325
     - path: artifacts/items_metadata.json
       hash: md5
-      md5: bb369afbf25d1573e48b89bd0c6110a6
-      size: 27280970
+      md5: f0aa552a8810ba7f0403064e7514bb26
+      size: 27280997
     - path: data/processed/test.csv
       hash: md5
-      md5: 88d441eaf265b9201cae0382c7402b3f
-      size: 4321389
+      md5: 8d061fde0bba23b20ab8f5a129092407
+      size: 7772058
     - path: data/processed/train.csv
       hash: md5
-      md5: b0a1bb0d1ae1be3e70e5276a25d1c080
-      size: 17285612
+      md5: 7e9b393f4b80da5e3c51626babe5f68d
+      size: 31089447
   train:
     cmd: python src/train_by_AWS.py
     deps:

@@ -265,7 +265,7 @@ with st.sidebar:
 st.markdown("""
 <div class="hero-banner">
     <h1>🛍️ Simulated Amazon Marketplace</h1>
-    <p>Powered by MLOps & AWS & Transformer system</p>
+    <p>Powered by MLOps & AWS & Transformer recommendation system</p>
 </div>
 """, unsafe_allow_html=True)
 
